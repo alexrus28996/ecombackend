@@ -4,6 +4,11 @@ import { Product } from '../catalog/product.model.js';
 import { Order } from './order.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { CART_STATUS } from '../../config/constants.js';
+import { adjustStock, getAvailableStock } from '../inventory/inventory.service.js';
+import { generateInvoicePdf } from './invoice.service.js';
+import { deliverEmail } from '../../utils/mailer.js';
+import { calcShipping, calcTax } from '../checkout/pricing.service.js';
+import { addTimeline } from './timeline.service.js';
 
 /**
  * Create an order from the user's active cart with stock checks.
@@ -11,7 +16,7 @@ import { CART_STATUS } from '../../config/constants.js';
  * @param {string} userId
  * @param {{ shippingAddress?: object, shipping?: number, taxRate?: number }} payload
  */
-export async function createOrderFromCart(userId, { shippingAddress, shipping = 0, taxRate = 0 }) {
+export async function createOrderFromCart(userId, { shippingAddress, shipping, taxRate }) {
   const cart = await Cart.findOne({ user: userId, status: CART_STATUS.ACTIVE });
   if (!cart || cart.items.length === 0) throw errors.badRequest(ERROR_CODES.CART_EMPTY);
 
@@ -23,27 +28,34 @@ export async function createOrderFromCart(userId, { shippingAddress, shipping = 
       useTxn = true;
     } catch { /* replica set not enabled */ }
 
-    // Check stock and build items snapshot
+    // Check stock and build items snapshot (variant-aware) using cart pricing
     const items = [];
     for (const it of cart.items) {
       const product = await Product.findById(it.product).session(useTxn ? session : null);
       if (!product || !product.isActive) throw errors.badRequest(ERROR_CODES.PRODUCT_UNAVAILABLE, { name: it.name });
-      if (product.stock < it.quantity) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK, { name: it.name });
-      product.stock -= it.quantity;
-      await product.save({ session: useTxn ? session : null });
-      items.push({ product: product._id, name: product.name, price: product.price, currency: product.currency, quantity: it.quantity });
+      const available = await getAvailableStock(product._id, it.variant || null);
+      if (available < it.quantity) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK, { name: it.name });
+      await adjustStock({ productId: product._id, variantId: it.variant || null, qtyChange: -Math.abs(it.quantity), reason: 'order', note: `Order`, byUserId: userId });
+      items.push({ product: product._id, name: it.name || product.name, price: it.price, currency: cart.currency, quantity: it.quantity });
     }
 
     const subtotal = items.reduce((s, it) => s + it.price * it.quantity, 0);
-    const tax = Math.round(subtotal * Number(taxRate) * 100) / 100;
-    const total = subtotal + Number(shipping) + Number(tax);
+    // Carry coupon discount from cart if present and applicable on current subtotal
+    let discount = 0;
+    if (cart.coupon && cart.couponCode) {
+      discount = Math.min(subtotal, Number(cart.discount || 0));
+    }
+    const shippingAmount = typeof shipping === 'number' ? Number(shipping) : calcShipping({ subtotal });
+    const tax = calcTax({ subtotal, taxRate });
+    const total = Math.max(0, subtotal - discount) + shippingAmount + Number(tax);
 
-    const order = await Order.create([
+    let order = await Order.create([
       {
         user: userId,
         items,
         subtotal,
-        shipping: Number(shipping) || 0,
+        discount,
+        shipping: shippingAmount,
         tax,
         total,
         currency: cart.currency,
@@ -56,9 +68,21 @@ export async function createOrderFromCart(userId, { shippingAddress, shipping = 
     cart.subtotal = 0;
     await cart.save({ session: useTxn ? session : null });
 
+    // Generate invoice
+    const created = order[0];
+    await addTimeline(created._id, { type: 'created', message: 'Order created', userId });
+    const { invoiceNumber, invoiceUrl } = await generateInvoicePdf(created);
+    created.invoiceNumber = invoiceNumber;
+    created.invoiceUrl = invoiceUrl;
+    await created.save({ session: useTxn ? session : null });
+    await addTimeline(created._id, { type: 'invoice_generated', message: `Invoice ${invoiceNumber} generated` });
+
     if (useTxn) await session.commitTransaction();
     await session.endSession();
-    return order[0];
+
+    // Notify (dev logs)
+    try { await deliverEmail({ to: created.user?.email || 'customer@example.com', subject: `Invoice ${invoiceNumber}`, text: `Your invoice: ${invoiceUrl}` }); } catch {}
+    return created;
   } catch (err) {
     try { await session.abortTransaction(); } catch {}
     try { await session.endSession(); } catch {}

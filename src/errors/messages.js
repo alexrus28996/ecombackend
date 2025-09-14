@@ -13,6 +13,8 @@ export const MESSAGES = Object.freeze({
 
   [ERROR_CODES.PRODUCT_NOT_FOUND]: 'Product not found',
   [ERROR_CODES.PRODUCT_UNAVAILABLE]: 'Product unavailable: {name}',
+  [ERROR_CODES.CATEGORY_NOT_FOUND]: 'Category not found',
+  [ERROR_CODES.CATEGORY_HAS_CHILDREN]: 'Category has child categories',
 
   [ERROR_CODES.CART_EMPTY]: 'Cart is empty',
   [ERROR_CODES.ITEM_NOT_IN_CART]: 'Item not in cart',

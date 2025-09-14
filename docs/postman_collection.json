@@ -1,0 +1,73 @@
+{
+  "info": {
+    "name": "ecombackend API",
+    "description": "Postman collection for ecombackend. Set {{baseUrl}} and {{token}} (Bearer).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4001" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        { "name": "Register", "request": { "method": "POST", "header": [ {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/auth/register", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Admin\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"ChangeMe123!\"\n}" } } },
+        { "name": "Login", "request": { "method": "POST", "header": [ {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/auth/login", "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"ChangeMe123!\"\n}" } } },
+        { "name": "Me", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/auth/me" } },
+        { "name": "Refresh", "request": { "method": "POST", "header": [ {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/auth/refresh", "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"<paste>\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/api/products" } },
+        { "name": "Create (admin)", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/products", "body": { "mode": "raw", "raw": "{\n  \"name\": \"T-Shirt\",\n  \"price\": 19.99,\n  \"currency\": \"USD\",\n  \"stock\": 10\n}" } } }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/api/categories" } },
+        { "name": "Create (admin)", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/categories", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Shirts\",\n  \"slug\": \"shirts\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        { "name": "Get Cart", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/cart" } },
+        { "name": "Add Item", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/cart/items", "body": { "mode": "raw", "raw": "{\n  \"productId\": \"<productId>\",\n  \"quantity\": 1\n}" } } },
+        { "name": "Apply Coupon", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/cart/coupon", "body": { "mode": "raw", "raw": "{\n  \"code\": \"SAVE10\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        { "name": "Create", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/orders", "body": { "mode": "raw", "raw": "{\n  \"shipping\": 0,\n  \"taxRate\": 0\n}" } } },
+        { "name": "List", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/orders" } }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        { "name": "Metrics", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/metrics" } },
+        { "name": "List Users", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/users" } },
+        { "name": "Sales Report", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/reports/sales" } },
+        { "name": "Create Coupon", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/admin/coupons", "body": { "mode": "raw", "raw": "{\n  \"code\": \"SAVE10\",\n  \"type\": \"percent\",\n  \"value\": 10\n}" } } }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        { "name": "Stripe Intent", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/payments/stripe/intent", "body": { "mode": "raw", "raw": "{\n  \"orderId\": \"<orderId>\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        { "name": "Upload Image (admin)", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/uploads", "body": { "mode": "formdata", "formdata": [ { "key": "file", "type": "file", "src": [] } ] } } }
+      ]
+    }
+  ]
+}
+

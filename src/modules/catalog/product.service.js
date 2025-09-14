@@ -1,12 +1,13 @@
 import { Product } from './product.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { config } from '../../config/index.js';
+import { paginate } from '../../utils/pagination.js';
 
 /**
  * Return a paginated list of products with basic text search.
  * @param {{ q?: string, limit?: number, page?: number }} params
  */
-export async function listProducts({ q, limit = config.API_DEFAULT_PAGE_SIZE, page = 1 }) {
+export async function listProducts({ q, category, limit = config.API_DEFAULT_PAGE_SIZE, page = 1 }) {
   const filter = {};
   if (q) {
     filter.$or = [
@@ -14,12 +15,8 @@ export async function listProducts({ q, limit = config.API_DEFAULT_PAGE_SIZE, pa
       { description: { $regex: q, $options: 'i' } }
     ];
   }
-  const skip = (Number(page) - 1) * Number(limit);
-  const [items, total] = await Promise.all([
-    Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
-    Product.countDocuments(filter)
-  ]);
-  return { items, total, page: Number(page), pages: Math.ceil(total / Number(limit) || 1) };
+  if (category) filter.category = category;
+  return paginate(Product, { filter, limit, page });
 }
 
 /**

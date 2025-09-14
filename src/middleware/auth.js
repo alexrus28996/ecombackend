@@ -1,5 +1,4 @@
-import jwt from 'jsonwebtoken';
-import { config } from '../config/index.js';
+import { verifyAccessToken } from '../utils/jwt.js';
 import { errors, ERROR_CODES } from '../errors/index.js';
 
 /**
@@ -12,7 +11,7 @@ export function authRequired(req, res, next) {
   }
   const token = auth.substring(7);
   try {
-    const payload = jwt.verify(token, config.JWT_SECRET);
+    const payload = verifyAccessToken(token);
     req.user = payload; // { sub, roles, email, name }
     next();
   } catch (err) {
@@ -28,6 +27,18 @@ export function requireRole(role) {
   return (req, res, next) => {
     const roles = req.user?.roles || [];
     if (!roles.includes(role)) return next(errors.forbidden(ERROR_CODES.FORBIDDEN));
+    next();
+  };
+}
+
+/**
+ * Require that the user has at least one of the given roles.
+ * @param {string[]} rolesAny
+ */
+export function requireAnyRole(rolesAny) {
+  return (req, res, next) => {
+    const roles = req.user?.roles || [];
+    if (!rolesAny.some((r) => roles.includes(r))) return next(errors.forbidden(ERROR_CODES.FORBIDDEN));
     next();
   };
 }

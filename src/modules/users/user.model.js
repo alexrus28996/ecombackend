@@ -9,7 +9,18 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
     roles: { type: [String], default: [ROLES.CUSTOMER] },
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    isVerified: { type: Boolean, default: false },
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date },
+    preferences: {
+      locale: { type: String, default: 'en' },
+      notifications: {
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: false },
+        push: { type: Boolean, default: true }
+      }
+    }
   },
   { timestamps: true }
 );

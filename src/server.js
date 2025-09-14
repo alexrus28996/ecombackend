@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { config } from './config/index.js';
 import { createApp } from './app.js';
 import { connectMongo } from './db/mongo.js';

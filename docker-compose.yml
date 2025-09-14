@@ -1,0 +1,33 @@
+version: '3.9'
+services:
+  api:
+    build: .
+    container_name: ecombackend_api
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=production
+      - PORT=4001
+      - MONGO_URI=mongodb://mongo:27017/
+      - DB_NAME=backend
+      - JWT_SECRET=${JWT_SECRET:-changeme}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-15m}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - API_PREFIX=${API_PREFIX:-/api}
+      - DEFAULT_CURRENCY=${DEFAULT_CURRENCY:-USD}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+    depends_on:
+      - mongo
+  mongo:
+    image: mongo:7
+    container_name: ecombackend_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
+
