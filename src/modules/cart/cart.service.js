@@ -67,7 +67,8 @@ export async function addItem(userId, { productId, variantId, quantity = 1 }) {
   cart.recalculate();
   // apply existing coupon if present
   if (cart.couponCode) {
-    const coupon = await findValidCouponByCode(cart.couponCode, { subtotal: cart.subtotal });
+    const productIds = cart.items.map(i => i.product);
+    const coupon = await findValidCouponByCode(cart.couponCode, { subtotal: cart.subtotal, userId, productIds });
     if (coupon) {
       cart.coupon = coupon._id;
       cart.discount = computeDiscount(coupon, cart.subtotal);
@@ -102,7 +103,8 @@ export async function updateItem(userId, { productId, variantId, quantity }) {
   cart.items[idx].quantity = quantity;
   cart.recalculate();
   if (cart.couponCode) {
-    const coupon = await findValidCouponByCode(cart.couponCode, { subtotal: cart.subtotal });
+    const productIds = cart.items.map(i => i.product);
+    const coupon = await findValidCouponByCode(cart.couponCode, { subtotal: cart.subtotal, userId, productIds });
     if (coupon) {
       cart.coupon = coupon._id;
       cart.discount = computeDiscount(coupon, cart.subtotal);
@@ -127,7 +129,8 @@ export async function removeItem(userId, { productId, variantId }) {
   cart.items = cart.items.filter((it) => !(it.product.toString() === productId && String(it.variant || '') === String(variantId || '')));
   cart.recalculate();
   if (cart.couponCode) {
-    const coupon = await findValidCouponByCode(cart.couponCode, { subtotal: cart.subtotal });
+    const productIds = cart.items.map(i => i.product);
+    const coupon = await findValidCouponByCode(cart.couponCode, { subtotal: cart.subtotal, userId, productIds });
     if (coupon) {
       cart.coupon = coupon._id;
       cart.discount = computeDiscount(coupon, cart.subtotal);
@@ -150,7 +153,8 @@ export async function removeItem(userId, { productId, variantId }) {
 export async function applyCoupon(userId, code) {
   const cart = await getOrCreateCart(userId);
   cart.recalculate();
-  const coupon = await findValidCouponByCode(code, { subtotal: cart.subtotal });
+  const productIds = cart.items.map(i => i.product);
+  const coupon = await findValidCouponByCode(code, { subtotal: cart.subtotal, userId, productIds });
   if (!coupon) throw errors.badRequest(ERROR_CODES.VALIDATION_ERROR, null, { field: 'coupon', message: 'Invalid or inapplicable coupon' });
   cart.couponCode = coupon.code;
   cart.coupon = coupon._id;

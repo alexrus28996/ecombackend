@@ -15,6 +15,11 @@ export const MESSAGES = Object.freeze({
   [ERROR_CODES.PRODUCT_UNAVAILABLE]: 'Product unavailable: {name}',
   [ERROR_CODES.CATEGORY_NOT_FOUND]: 'Category not found',
   [ERROR_CODES.CATEGORY_HAS_CHILDREN]: 'Category has child categories',
+  [ERROR_CODES.BRAND_HAS_PRODUCTS]: 'Brand has products',
+  [ERROR_CODES.PRODUCT_HAS_INVENTORY]: 'Product has inventory records',
+  [ERROR_CODES.PRODUCT_HAS_REVIEWS]: 'Product has reviews',
+  [ERROR_CODES.PRODUCT_IN_ORDERS]: 'Product exists in orders',
+  [ERROR_CODES.PRODUCT_IN_SHIPMENTS]: 'Product exists in shipments',
 
   [ERROR_CODES.CART_EMPTY]: 'Cart is empty',
   [ERROR_CODES.ITEM_NOT_IN_CART]: 'Item not in cart',

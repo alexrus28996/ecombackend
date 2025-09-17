@@ -16,14 +16,14 @@ export async function listProducts({ q, category, limit = config.API_DEFAULT_PAG
     ];
   }
   if (category) filter.category = category;
-  return paginate(Product, { filter, limit, page });
+  return paginate(Product, { filter, limit, page, populate: [ { path: 'category', select: 'name slug' }, { path: 'brand', select: 'name slug' } ] });
 }
 
 /**
  * Get a single product by id or throw NOT_FOUND.
  */
 export async function getProduct(id) {
-  const product = await Product.findById(id);
+  const product = await Product.findById(id).populate('category', 'name slug').populate('brand', 'name slug');
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
   return product;
 }
@@ -49,7 +49,21 @@ export async function updateProduct(id, data) {
  * Delete a product by id or throw NOT_FOUND.
  */
 export async function deleteProduct(id) {
-  const product = await Product.findByIdAndDelete(id);
+  const product = await Product.findById(id);
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
+  // Prevent delete if referenced by inventory/reviews/orders/shipments
+  const [{ Inventory }] = await Promise.all([import('../inventory/inventory.model.js')]);
+  const invCount = await Inventory.countDocuments({ product: id });
+  if (invCount > 0) throw errors.conflict(ERROR_CODES.PRODUCT_HAS_INVENTORY);
+  const { Review } = await import('../reviews/review.model.js');
+  const revCount = await Review.countDocuments({ product: id });
+  if (revCount > 0) throw errors.conflict(ERROR_CODES.PRODUCT_HAS_REVIEWS);
+  const { Order } = await import('../orders/order.model.js');
+  const ordCount = await Order.countDocuments({ 'items.product': id });
+  if (ordCount > 0) throw errors.conflict(ERROR_CODES.PRODUCT_IN_ORDERS);
+  const { Shipment } = await import('../orders/shipment.model.js');
+  const shpCount = await Shipment.countDocuments({ 'items.product': id });
+  if (shpCount > 0) throw errors.conflict(ERROR_CODES.PRODUCT_IN_SHIPMENTS);
+  await Product.deleteOne({ _id: id });
   return { success: true };
 }

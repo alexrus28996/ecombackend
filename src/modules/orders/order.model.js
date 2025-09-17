@@ -5,6 +5,7 @@ import { ORDER_STATUS, PAYMENT_STATUS } from '../../config/constants.js';
 // Snapshot of ordered item (denormalized)
 const orderItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  variant: { type: mongoose.Schema.Types.ObjectId },
   name: { type: String, required: true },
   price: { type: Number, required: true, min: 0 },
   currency: { type: String, required: true },
@@ -31,7 +32,9 @@ const orderSchema = new mongoose.Schema(
     subtotal: { type: Number, required: true },
     shipping: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
+    taxRate: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
+    couponCode: { type: String },
     total: { type: Number, required: true },
     currency: { type: String, default: () => config.DEFAULT_CURRENCY },
     status: { type: String, enum: Object.values(ORDER_STATUS), default: ORDER_STATUS.PENDING },
@@ -42,9 +45,13 @@ const orderSchema = new mongoose.Schema(
     invoiceNumber: { type: String },
     invoiceUrl: { type: String },
     shippingAddress: { type: addressSchema },
+    billingAddress: { type: addressSchema },
     placedAt: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );
+
+// Helpful indexes for common queries
+orderSchema.index({ user: 1, createdAt: -1 });
 
 export const Order = mongoose.model('Order', orderSchema);

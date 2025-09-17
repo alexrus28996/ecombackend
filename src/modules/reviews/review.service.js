@@ -1,6 +1,7 @@
 import { Review } from './review.model.js';
 import { Product } from '../catalog/product.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
+import { Order } from '../orders/order.model.js';
 
 export async function listProductReviews(productId, { limit = 20, page = 1, includeUnapproved = false } = {}) {
   const filter = { product: productId };
@@ -14,11 +15,20 @@ export async function listProductReviews(productId, { limit = 20, page = 1, incl
 }
 
 export async function upsertReview(productId, userId, { rating, comment }) {
+  const exists = await Product.exists({ _id: productId });
+  if (!exists) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
   const review = await Review.findOneAndUpdate(
     { product: productId, user: userId },
     { rating, comment, isApproved: true },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
+  try {
+    const hasPaidOrder = await Order.exists({ user: userId, 'items.product': productId, paymentStatus: 'paid' });
+    if (hasPaidOrder && !review.verifiedPurchase) {
+      review.verifiedPurchase = true;
+      await review.save();
+    }
+  } catch {}
   await recomputeProductRating(productId);
   return review;
 }
@@ -51,4 +61,3 @@ export async function recomputeProductRating(productId) {
   const avg = stats ? Math.round(stats.avg * 10) / 10 : 0;
   await Product.findByIdAndUpdate(productId, { ratingCount: count, ratingAvg: avg });
 }
-

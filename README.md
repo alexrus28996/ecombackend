@@ -55,6 +55,16 @@ src/
 - Option B (server-only URI + DB_NAME): set `MONGO_URI=mongodb://localhost:27017/` and `DB_NAME=ecombackend`
 - Docker quick start: `docker run -d --name mongo -p 27017:27017 mongo:7`
 
+### DB Logging & Metrics
+- Set `DB_SLOW_MS` to log queries slower than N ms (default 50ms).
+- Set `DB_LOG_COMMANDS=true` to log all DB commands with durations (verbose).
+
+### File Logging & Rotation
+- Set `LOG_FILE` to log to a file instead of stdout.
+- To rotate logs, set `LOG_ROTATE_ENABLED=true`.
+  - Controls:
+    - `LOG_ROTATE_INTERVAL` (default `1d`), `LOG_ROTATE_SIZE` (e.g., `10M`), `LOG_ROTATE_MAX_FILES` (default `7`).
+
 ## API Overview
 - `GET /health`
 - Auth
@@ -122,6 +132,15 @@ src/
   - `API_PREFIX`, `JSON_BODY_LIMIT`, `HEALTH_PATH`
   - `DEFAULT_CURRENCY`, `API_DEFAULT_PAGE_SIZE`, `API_MAX_PAGE_SIZE`
   - `RATE_LIMIT_*`, `CORS_ORIGIN`, `LOG_LEVEL`, `TRUST_PROXY`
+
+### Inventory Source of Truth
+- Inventory (`Inventory` model) is the single source of truth for stock levels.
+- Product and variant `stock` fields are no longer used for reads/writes in runtime logic.
+- After upgrading, backfill Inventory from existing product/variant stock once:
+  - `npm run backfill-inventory`
+  - This creates missing inventory rows using current `product.stock`/`variant.stock` values.
+ - Optional cleanup to remove legacy fields from products/variants:
+   - `npm run cleanup:remove-stock-fields`
   
 ## Stripe Webhooks (dev)
 - Set env: `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`

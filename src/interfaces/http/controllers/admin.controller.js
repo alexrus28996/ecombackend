@@ -10,6 +10,10 @@ import slugify from 'slugify';
 import { ReturnRequest } from '../../../modules/orders/return.model.js';
 import { refundPaymentIntent } from '../../../modules/payments/stripe.service.js';
 import { addTimeline } from '../../../modules/orders/timeline.service.js';
+import { PaymentTransaction } from '../../../modules/payments/payment-transaction.model.js';
+import { Refund } from '../../../modules/payments/refund.model.js';
+import { Shipment } from '../../../modules/orders/shipment.model.js';
+import { Product } from '../../../modules/catalog/product.model.js';
 
 export async function listUsers(req, res) {
   const { q } = req.query;
@@ -201,22 +205,81 @@ export async function approveReturnController(req, res) {
   if (rr.status !== 'requested') return res.status(400).json({ error: { message: 'Return already processed' } });
   const order = await Order.findById(rr.order);
   if (!order) return res.status(404).json({ error: { message: 'Order not found' } });
+
+  // 1) Attempt refund with provider first (to avoid refund success but DB failure later)
+  let refundDoc;
   if (order.paymentProvider === 'stripe' && order.transactionId) {
-    try { await refundPaymentIntent(order.transactionId); } catch (e) { /* swallow for now */ }
+    try {
+      // Calculate amount for partial refunds if provided
+      let amountCents;
+      if (req.validated?.body?.items?.length || typeof req.validated?.body?.amount === 'number') {
+        if (typeof req.validated.body.amount === 'number') {
+          amountCents = Math.floor(Math.max(0, req.validated.body.amount) * 100);
+        } else {
+          // compute from items
+          const itemsMap = new Map(order.items.map((it) => [String(it.product) + '|' + String(it.variant || ''), it]));
+          let sum = 0;
+          for (const it of req.validated.body.items) {
+            const key = String(it.product) + '|' + String(it.variant || '');
+            const ordIt = itemsMap.get(key);
+            if (ordIt) sum += Number(ordIt.price) * Math.min(Number(ordIt.quantity), Number(it.quantity));
+          }
+          amountCents = Math.floor(Math.max(0, sum) * 100);
+        }
+      }
+      const r = await refundPaymentIntent(order.transactionId, amountCents);
+      try {
+        const tx = await PaymentTransaction.findOne({ order: order._id, providerRef: order.transactionId });
+        const refundAmount = typeof req.validated?.body?.amount === 'number' ? req.validated.body.amount : (amountCents ? amountCents / 100 : order.total);
+        refundDoc = await Refund.create({ order: order._id, transaction: tx?._id, provider: 'stripe', status: 'succeeded', amount: refundAmount, currency: order.currency, providerRef: r.id, raw: r });
+      } catch {}
+    } catch (e) {
+      return res.status(502).json({ error: { message: 'Refund failed', details: e.message } });
+    }
   }
-  for (const it of order.items) {
-    await adjustStock({ productId: it.product, variantId: it.variant || null, qtyChange: Math.abs(it.quantity), reason: 'refund', note: `Return ${rr._id}`, byUserId: req.user.sub });
+
+  // 2) Apply DB changes in a transaction
+  const mongoose = (await import('mongoose')).default;
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      // Restock all items
+      const partialItems = req.validated?.body?.items;
+      if (Array.isArray(partialItems) && partialItems.length) {
+        const reqMap = new Map(partialItems.map((it) => [String(it.product) + '|' + String(it.variant || ''), Number(it.quantity)]));
+        for (const it of order.items) {
+          const key = String(it.product) + '|' + String(it.variant || '');
+          const qty = reqMap.get(key);
+          if (qty) await adjustStock({ productId: it.product, variantId: it.variant || null, qtyChange: Math.abs(qty), reason: 'refund', note: `Return ${rr._id}`, byUserId: req.user.sub, session });
+        }
+      } else {
+        for (const it of order.items) {
+          await adjustStock({ productId: it.product, variantId: it.variant || null, qtyChange: Math.abs(it.quantity), reason: 'refund', note: `Return ${rr._id}`, byUserId: req.user.sub, session });
+        }
+      }
+      const isFull = !req.validated?.body?.items && typeof req.validated?.body?.amount !== 'number';
+      if (isFull) {
+        order.paymentStatus = 'refunded';
+        order.status = 'refunded';
+      }
+      await order.save({ session });
+      rr.status = 'refunded';
+      rr.refundedAt = new Date();
+      rr.approvedBy = req.user.sub;
+      rr.approvedAt = new Date();
+      await rr.save({ session });
+    });
+  } finally {
+    await session.endSession();
   }
-  order.paymentStatus = 'refunded';
-  order.status = 'refunded';
-  await order.save();
-  rr.status = 'refunded';
-  rr.refundedAt = new Date();
-  rr.approvedBy = req.user.sub;
-  rr.approvedAt = new Date();
-  await rr.save();
-  await addTimeline(order._id, { type: 'return_approved', message: 'Return approved and refunded', userId: req.user.sub });
-  res.json({ return: rr, order });
+
+  try { await addTimeline(order._id, { type: 'return_approved', message: 'Return approved and refunded', userId: req.user.sub }); } catch {}
+  if (refundDoc) {
+    rr.refund = refundDoc._id;
+    await rr.save();
+    try { await PaymentTransaction.updateMany({ order: order._id }, { $set: { status: 'refunded' } }); } catch {}
+  }
+  res.json({ return: rr, order, refund: refundDoc });
 }
 
 export async function rejectReturnController(req, res) {
@@ -231,6 +294,144 @@ export async function rejectReturnController(req, res) {
   res.json({ return: rr });
 }
 
+// Payments: Transactions
+export async function listTransactionsController(req, res) {
+  const { order, provider, status, page = 1, limit = 20 } = req.query;
+  const filter = {};
+  if (order) filter.order = order;
+  if (provider) filter.provider = provider;
+  if (status) filter.status = status;
+  const l = Math.max(1, Number(limit) || 20);
+  const p = Math.max(1, Number(page) || 1);
+  const skip = (p - 1) * l;
+  const [items, total] = await Promise.all([
+    PaymentTransaction.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
+    PaymentTransaction.countDocuments(filter)
+  ]);
+  res.json({ items, total, page: p, pages: Math.ceil(total / l || 1) });
+}
+
+export async function getTransactionController(req, res) {
+  const item = await PaymentTransaction.findById(req.params.id);
+  if (!item) return res.status(404).json({ error: { message: 'Transaction not found' } });
+  res.json({ transaction: item });
+}
+
+// Payments: Refunds
+export async function listRefundsAdminController(req, res) {
+  const { order, provider, status, page = 1, limit = 20 } = req.query;
+  const filter = {};
+  if (order) filter.order = order;
+  if (provider) filter.provider = provider;
+  if (status) filter.status = status;
+  const l = Math.max(1, Number(limit) || 20);
+  const p = Math.max(1, Number(page) || 1);
+  const skip = (p - 1) * l;
+  const [items, total] = await Promise.all([
+    Refund.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
+    Refund.countDocuments(filter)
+  ]);
+  res.json({ items, total, page: p, pages: Math.ceil(total / l || 1) });
+}
+
+export async function getRefundAdminController(req, res) {
+  const item = await Refund.findById(req.params.id);
+  if (!item) return res.status(404).json({ error: { message: 'Refund not found' } });
+  res.json({ refund: item });
+}
+
+// Fulfillment: Shipments
+export async function listShipmentsController(req, res) {
+  const { order, page = 1, limit = 20 } = req.query;
+  const filter = {};
+  if (order) filter.order = order;
+  const l = Math.max(1, Number(limit) || 20);
+  const p = Math.max(1, Number(page) || 1);
+  const skip = (p - 1) * l;
+  const [items, total] = await Promise.all([
+    Shipment.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
+    Shipment.countDocuments(filter)
+  ]);
+  res.json({ items, total, page: p, pages: Math.ceil(total / l || 1) });
+}
+
+export async function createShipmentController(req, res) {
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ error: { message: 'Order not found' } });
+  const { carrier, tracking, service, items } = req.validated.body || {};
+  const payload = {
+    order: order._id,
+    address: order.shippingAddress,
+    carrier,
+    tracking,
+    service,
+    items: Array.isArray(items) && items.length > 0 ? items : order.items.map((it) => ({ product: it.product, variant: it.variant, name: it.name, quantity: it.quantity }))
+  };
+  const shp = await Shipment.create(payload);
+  try { await addTimeline(order._id, { type: 'shipment_created', message: `Shipment ${shp._id} created` }); } catch {}
+  res.status(201).json({ shipment: shp });
+}
+
+export async function getShipmentController(req, res) {
+  const item = await Shipment.findById(req.params.id);
+  if (!item) return res.status(404).json({ error: { message: 'Shipment not found' } });
+  res.json({ shipment: item });
+}
+
+export async function listOrderShipmentsController(req, res) {
+  const { page = 1, limit = 20 } = req.query;
+  const order = req.validated.params.id;
+  const l = Math.max(1, Number(limit) || 20);
+  const p = Math.max(1, Number(page) || 1);
+  const skip = (p - 1) * l;
+  const [items, total] = await Promise.all([
+    Shipment.find({ order }).sort({ createdAt: -1 }).skip(skip).limit(l),
+    Shipment.countDocuments({ order })
+  ]);
+  res.json({ items, total, page: p, pages: Math.ceil(total / l || 1) });
+}
+
+// Variant matrix generation (admin helper)
+export async function variantsMatrixController(req, res) {
+  const { options, base } = req.validated.body || {};
+  const keys = Object.keys(options || {});
+  if (!keys.length) return res.status(400).json({ error: { message: 'No options provided' } });
+  // Cartesian product
+  const values = keys.map(k => options[k]);
+  const combine = (arrs) => arrs.reduce((acc, curr) => acc.flatMap(x => curr.map(y => [...x, y])), [[]]);
+  const combos = combine(values);
+  const variants = combos.map(combo => {
+    const attrs = {};
+    combo.forEach((v, idx) => { attrs[keys[idx]] = v; });
+    const sku = base?.skuPrefix ? `${base.skuPrefix}-${keys.map((k, i) => String(combo[i]).toUpperCase()).join('-')}` : undefined;
+    return { attributes: attrs, sku };
+  });
+  res.json({ count: variants.length, variants });
+}
+
+// Reference checks
+export async function productReferencesController(req, res) {
+  const productId = req.validated.params.id;
+  const [{ Inventory }] = await Promise.all([import('../../../modules/inventory/inventory.model.js')]);
+  const { Review } = await import('../../../modules/reviews/review.model.js');
+  const { Order } = await import('../../../modules/orders/order.model.js');
+  const { Shipment } = await import('../../../modules/orders/shipment.model.js');
+  const [inventory, reviews, orders, shipments] = await Promise.all([
+    Inventory.countDocuments({ product: productId }),
+    Review.countDocuments({ product: productId }),
+    Order.countDocuments({ 'items.product': productId }),
+    Shipment.countDocuments({ 'items.product': productId })
+  ]);
+  res.json({ inventory, reviews, orders, shipments });
+}
+
+export async function brandReferencesController(req, res) {
+  const brandId = req.validated.params.id;
+  const { Product } = await import('../../../modules/catalog/product.model.js');
+  const products = await Product.countDocuments({ brand: brandId });
+  res.json({ products });
+}
+
 export async function importProductsController(req, res) {
   const items = req.validated.body.items.map((it) => ({
     ...it,
@@ -240,6 +441,13 @@ export async function importProductsController(req, res) {
   const results = { inserted: 0, failed: 0, errors: [] };
   for (const it of items) {
     try {
+      if (it.category) {
+        const { Category } = await import('../../../modules/catalog/category.model.js');
+        const cat = await Category.findById(it.category).lean();
+        if (!cat) throw new Error('Category not found');
+        const hasChildren = await Category.exists({ parent: it.category });
+        if (hasChildren) throw new Error('Category must be a leaf (no children)');
+      }
       await Product.create(it);
       results.inserted++;
     } catch (e) {
@@ -254,7 +462,7 @@ export async function exportProductsController(req, res) {
   const format = (req.query.format || 'json').toString().toLowerCase();
   const products = await Product.find({}).sort({ createdAt: -1 }).lean();
   if (format === 'csv') {
-    const headers = ['name','slug','description','price','currency','stock','isActive','category','images','attributes','variants'];
+    const headers = ['name','slug','description','price','currency','isActive','category','images','attributes','variants'];
     const lines = [headers.join(',')];
     for (const p of products) {
       const row = [
@@ -263,7 +471,6 @@ export async function exportProductsController(req, res) {
         (p.description || '').replace(/\n|\r|,/g, ' '),
         String(p.price ?? ''),
         p.currency || '',
-        String(p.stock ?? ''),
         String(p.isActive ?? ''),
         p.category ? String(p.category) : '',
         JSON.stringify(p.images || []),
@@ -366,4 +573,3 @@ export async function categoryBulkController(req, res) {
   const result = await Product.updateMany({ _id: { $in: productIds } }, { $set: { category: categoryId } });
   res.json({ matched: result.matchedCount ?? result.n, modified: result.modifiedCount ?? result.nModified });
 }
-

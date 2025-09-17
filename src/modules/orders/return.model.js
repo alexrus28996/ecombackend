@@ -7,6 +7,7 @@ const returnSchema = new mongoose.Schema(
     status: { type: String, enum: ['requested', 'approved', 'rejected', 'refunded'], default: 'requested' },
     reason: { type: String },
     note: { type: String },
+    refund: { type: mongoose.Schema.Types.ObjectId, ref: 'Refund' },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     approvedAt: { type: Date },
     rejectedAt: { type: Date },
@@ -16,4 +17,3 @@ const returnSchema = new mongoose.Schema(
 );
 
 export const ReturnRequest = mongoose.model('ReturnRequest', returnSchema);
-

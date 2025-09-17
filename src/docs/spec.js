@@ -27,6 +27,24 @@ export function buildOpenApiSpec() {
         }
       },
       schemas: {
+        AddressBook: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            type: { type: 'string', enum: ['shipping','billing'] },
+            fullName: { type: 'string' },
+            line1: { type: 'string' },
+            line2: { type: 'string' },
+            city: { type: 'string' },
+            state: { type: 'string' },
+            postalCode: { type: 'string' },
+            country: { type: 'string' },
+            phone: { type: 'string' },
+            label: { type: 'string' },
+            isDefault: { type: 'boolean' }
+          },
+          required: ['type','line1']
+        },
         UserPreferences: {
           type: 'object',
           properties: {
@@ -55,7 +73,8 @@ export function buildOpenApiSpec() {
             user: { type: 'string' },
             rating: { type: 'integer', minimum: 1, maximum: 5 },
             comment: { type: 'string' },
-            isApproved: { type: 'boolean' }
+            isApproved: { type: 'boolean' },
+            verifiedPurchase: { type: 'boolean' }
           },
           required: ['product', 'user', 'rating']
         },
@@ -111,6 +130,7 @@ export function buildOpenApiSpec() {
             description: { type: 'string' },
             price: { type: 'number' },
             currency: { type: 'string' },
+            brand: { type: 'string' },
             images: {
               type: 'array',
               items: { type: 'object', properties: { url: { type: 'string' }, alt: { type: 'string' } } }
@@ -118,9 +138,8 @@ export function buildOpenApiSpec() {
             attributes: { type: 'object', additionalProperties: { type: 'string' } },
             variants: {
               type: 'array',
-              items: { type: 'object', properties: { _id: { type: 'string' }, sku: { type: 'string' }, attributes: { type: 'object', additionalProperties: { type: 'string' } }, price: { type: 'number' }, priceDelta: { type: 'number' }, stock: { type: 'integer' }, isActive: { type: 'boolean' } } }
+              items: { type: 'object', properties: { _id: { type: 'string' }, sku: { type: 'string' }, attributes: { type: 'object', additionalProperties: { type: 'string' } }, price: { type: 'number' }, priceDelta: { type: 'number' }, isActive: { type: 'boolean' } } }
             },
-            stock: { type: 'integer' },
             isActive: { type: 'boolean' }
           },
           required: ['name', 'price']
@@ -130,23 +149,39 @@ export function buildOpenApiSpec() {
           properties: {
             name: { type: 'string' },
             description: { type: 'string' },
+            longDescription: { type: 'string' },
             price: { type: 'number' },
+            compareAtPrice: { type: 'number' },
+            costPrice: { type: 'number' },
             currency: { type: 'string', default: config.DEFAULT_CURRENCY },
             images: {
               type: 'array',
               items: { type: 'object', properties: { url: { type: 'string' }, alt: { type: 'string' } } }
             },
             attributes: { type: 'object', additionalProperties: { type: 'string' } },
-            variants: { type: 'array', items: { type: 'object', properties: { sku: { type: 'string' }, attributes: { type: 'object', additionalProperties: { type: 'string' } }, price: { type: 'number' }, priceDelta: { type: 'number' }, stock: { type: 'integer' }, isActive: { type: 'boolean' } } } },
-            stock: { type: 'integer' },
-            isActive: { type: 'boolean' }
+            category: { type: 'string', description: 'Category id' },
+            brand: { type: 'string' },
+            vendor: { type: 'string' },
+            sku: { type: 'string' },
+            barcode: { type: 'string' },
+            taxClass: { type: 'string' },
+            tags: { type: 'array', items: { type: 'string' } },
+            variants: { type: 'array', items: { type: 'object', properties: { sku: { type: 'string' }, attributes: { type: 'object', additionalProperties: { type: 'string' } }, price: { type: 'number' }, priceDelta: { type: 'number' }, isActive: { type: 'boolean' } } } },
+            requiresShipping: { type: 'boolean' },
+            weight: { type: 'number' },
+            weightUnit: { type: 'string' },
+            dimensions: { type: 'object', properties: { length: { type: 'number' }, width: { type: 'number' }, height: { type: 'number' }, unit: { type: 'string' } } },
+            isActive: { type: 'boolean' },
+            metaTitle: { type: 'string' },
+            metaDescription: { type: 'string' }
           },
-          required: ['name', 'price']
+          required: ['name', 'price', 'category']
         },
         CartItem: {
           type: 'object',
           properties: {
             product: { type: 'string' },
+            variant: { type: 'string' },
             name: { type: 'string' },
             price: { type: 'number' },
             currency: { type: 'string' },
@@ -187,11 +222,14 @@ export function buildOpenApiSpec() {
             subtotal: { type: 'number' },
             shipping: { type: 'number' },
             tax: { type: 'number' },
+            taxRate: { type: 'number' },
             total: { type: 'number' },
             currency: { type: 'string' },
             status: { type: 'string' },
             paymentStatus: { type: 'string' },
-            shippingAddress: { $ref: '#/components/schemas/Address' }
+            couponCode: { type: 'string' },
+            shippingAddress: { $ref: '#/components/schemas/Address' },
+            billingAddress: { $ref: '#/components/schemas/Address' }
           }
         }
       }
@@ -316,7 +354,7 @@ export function buildOpenApiSpec() {
       },
       [`${api}/products`]: {
         get: {
-          summary: 'List products',
+          summary: 'List products (category and brand populated)',
           parameters: [
             { name: 'q', in: 'query', schema: { type: 'string' } },
             { name: 'category', in: 'query', schema: { type: 'string', description: 'Category id' } },
@@ -328,7 +366,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Create product',
           security: [{ bearerAuth: [] }],
-          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ProductInput' }, example: { name: 'T-Shirt', description: '100% cotton', price: 19.99, currency: 'USD', images: [{ url: 'https://example.com/img.jpg' }], stock: 10 } } } },
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ProductInput' }, example: { name: 'T-Shirt', description: '100% cotton', price: 19.99, currency: 'USD', images: [{ url: 'https://example.com/img.jpg' }], category: '<categoryId>' } } } },
           responses: { '201': { description: 'Created' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
         }
       },
@@ -400,7 +438,7 @@ export function buildOpenApiSpec() {
           summary: 'Delete product',
           security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' }, '409': { description: 'Conflict (product referenced by inventory/reviews/orders/shipments)' } }
         }
       },
       [`${api}/categories`]: {
@@ -465,6 +503,14 @@ export function buildOpenApiSpec() {
           summary: 'Get current user cart',
           security: [{ bearerAuth: [] }],
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' } }
+        }
+      },
+      [`${api}/cart/estimate`]: {
+        post: {
+          summary: 'Estimate shipping/tax for current cart',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: { shipping: { type: 'number' }, taxRate: { type: 'number' } } } } } },
+          responses: { '200': { description: 'OK' } }
         }
       },
       [`${api}/cart/items`]: {
@@ -537,6 +583,57 @@ export function buildOpenApiSpec() {
         },
         delete: {
           summary: 'Delete coupon (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/admin/brands`]: {
+        get: {
+          summary: 'List brands (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'q', in: 'query', schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
+          responses: { '200': { description: 'OK' } }
+        },
+        post: {
+          summary: 'Create brand (admin)',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, slug: { type: 'string' }, description: { type: 'string' }, isActive: { type: 'boolean' } }, required: ['name'] } } } },
+          responses: { '201': { description: 'Created' } }
+        }
+      },
+      [`${api}/admin/brands/{id}`]: {
+        get: {
+          summary: 'Get brand (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        },
+        put: {
+          summary: 'Update brand (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, slug: { type: 'string' }, description: { type: 'string' }, isActive: { type: 'boolean' } } } } } },
+          responses: { '200': { description: 'OK' } }
+        },
+        delete: {
+          summary: 'Delete brand (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '409': { description: 'Conflict (brand has products)' } }
+        }
+      },
+      [`${api}/admin/products/{id}/references`]: {
+        get: {
+          summary: 'List product references (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/admin/brands/{id}/references`]: {
+        get: {
+          summary: 'List brand references (admin)',
           security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' } }
@@ -636,6 +733,63 @@ export function buildOpenApiSpec() {
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string' }, paymentStatus: { type: 'string' } } } } } },
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/categories`]: {
+        get: {
+          summary: 'List categories (admin alias)',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'q', in: 'query', schema: { type: 'string' } },
+            { name: 'parent', in: 'query', schema: { type: 'string', nullable: true } },
+            { name: 'page', in: 'query', schema: { type: 'integer' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer' } }
+          ],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
+        },
+        post: {
+          summary: 'Create category (admin alias)',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, slug: { type: 'string' }, description: { type: 'string' }, parent: { type: 'string', nullable: true } }, required: ['name'] } } } },
+          responses: { '201': { description: 'Created' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
+        }
+      },
+      [`${api}/admin/categories/{id}`]: {
+        get: {
+          summary: 'Get category by id (admin alias)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
+        },
+        put: {
+          summary: 'Update category (admin alias)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, slug: { type: 'string' }, description: { type: 'string' }, parent: { type: 'string', nullable: true } } } } } },
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
+        },
+        delete: {
+          summary: 'Delete category (admin alias)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/categories/{id}/children`]: {
+        get: {
+          summary: 'List children (admin alias)',
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'id', in: 'path', required: true, schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
+        }
+      },
+      [`${api}/admin/categories/{id}/reorder`]: {
+        post: {
+          summary: 'Reorder children (admin alias)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' } } }, required: ['ids'] } } } },
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
         }
       },
       [`${api}/admin/products/import`]: {
@@ -765,6 +919,49 @@ export function buildOpenApiSpec() {
           responses: { '201': { description: 'Created' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
         }
       },
+      [`${api}/addresses`]: {
+        get: {
+          summary: 'List my addresses',
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'type', in: 'query', schema: { type: 'string', enum: ['shipping','billing'] } } ],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' } }
+        },
+        post: {
+          summary: 'Create address',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AddressBook' } } } },
+          responses: { '201': { description: 'Created' }, '401': { description: 'Unauthorized' } }
+        }
+      },
+      [`${api}/addresses/{id}`]: {
+        get: {
+          summary: 'Get address by id',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '404': { description: 'Not Found' } }
+        },
+        put: {
+          summary: 'Update address',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AddressBook' } } } },
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '404': { description: 'Not Found' } }
+        },
+        delete: {
+          summary: 'Delete address',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/addresses/{id}/default`]: {
+        post: {
+          summary: 'Set address as default (by type)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '404': { description: 'Not Found' } }
+        }
+      },
       [`${api}/uploads/cloudinary`]: {
         post: {
           summary: 'Upload image to Cloudinary (admin)',
@@ -847,6 +1044,107 @@ export function buildOpenApiSpec() {
           security: [{ bearerAuth: [] }],
           parameters: [ { name: 'status', in: 'query', schema: { type: 'string', enum: ['requested','approved','rejected','refunded'] } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
           responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/admin/transactions`]: {
+        get: {
+          summary: 'List payment transactions (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'order', in: 'query', schema: { type: 'string' } }, { name: 'provider', in: 'query', schema: { type: 'string' } }, { name: 'status', in: 'query', schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/admin/transactions/{id}`]: {
+        get: {
+          summary: 'Get transaction by id (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/refunds`]: {
+        get: {
+          summary: 'List refunds (admin)',
+        PaymentTransaction: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            order: { type: 'string' },
+            provider: { type: 'string' },
+            status: { type: 'string', enum: ['pending','succeeded','failed','refunded'] },
+            amount: { type: 'number' },
+            currency: { type: 'string' },
+            providerRef: { type: 'string' }
+          }
+        },
+        Refund: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            order: { type: 'string' },
+            transaction: { type: 'string' },
+            provider: { type: 'string' },
+            status: { type: 'string', enum: ['pending','succeeded','failed'] },
+            amount: { type: 'number' },
+            currency: { type: 'string' },
+            providerRef: { type: 'string' },
+            reason: { type: 'string' }
+          }
+        },
+        Shipment: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            order: { type: 'string' },
+            address: { $ref: '#/components/schemas/Address' },
+            carrier: { type: 'string' },
+            service: { type: 'string' },
+            tracking: { type: 'string' },
+            status: { type: 'string', enum: ['pending','shipped','delivered','returned'] }
+          }
+        },
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'order', in: 'query', schema: { type: 'string' } }, { name: 'provider', in: 'query', schema: { type: 'string' } }, { name: 'status', in: 'query', schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/admin/refunds/{id}`]: {
+        get: {
+          summary: 'Get refund by id (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/shipments`]: {
+        get: {
+          summary: 'List shipments (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'order', in: 'query', schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/admin/orders/{id}/shipments`]: {
+        get: {
+          summary: 'List shipments for order (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'id', in: 'path', required: true, schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
+          responses: { '200': { description: 'OK' } }
+        },
+        post: {
+          summary: 'Create shipment for order (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'id', in: 'path', required: true, schema: { type: 'string' } } ],
+          requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: { carrier: { type: 'string' }, tracking: { type: 'string' }, service: { type: 'string' } } } } } },
+          responses: { '201': { description: 'Created' } }
+        }
+      },
+      [`${api}/admin/shipments/{id}`]: {
+        get: {
+          summary: 'Get shipment by id (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [ { name: 'id', in: 'path', required: true, schema: { type: 'string' } } ],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         }
       },
       [`${api}/admin/returns/{id}/approve`]: {

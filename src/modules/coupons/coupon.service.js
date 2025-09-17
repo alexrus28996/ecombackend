@@ -1,4 +1,6 @@
 import { Coupon } from './coupon.model.js';
+import { Product } from '../catalog/product.model.js';
+import { Order } from '../orders/order.model.js';
 
 export async function createCoupon(data) {
   data.code = String(data.code).trim().toUpperCase();
@@ -37,11 +39,42 @@ export async function deleteCoupon(id) {
   return { success: true };
 }
 
-export async function findValidCouponByCode(code, { subtotal }) {
+export async function findValidCouponByCode(code, { subtotal, userId, productIds } = {}) {
   const c = await Coupon.findOne({ code: String(code).trim().toUpperCase(), isActive: true });
   if (!c) return null;
   if (c.expiresAt && Date.now() >= new Date(c.expiresAt).getTime()) return null;
   if (subtotal < (c.minSubtotal || 0)) return null;
+  // Usage limits
+  if (c.globalLimit && c.globalLimit > 0) {
+    const used = await Order.countDocuments({ couponCode: c.code });
+    if (used >= c.globalLimit) return null;
+  }
+  if (c.perUserLimit && c.perUserLimit > 0 && userId) {
+    const used = await Order.countDocuments({ couponCode: c.code, user: userId });
+    if (used >= c.perUserLimit) return null;
+  }
+  // Targeting rules
+  if ((c.includeCategories?.length || c.excludeCategories?.length || c.includeProducts?.length || c.excludeProducts?.length) && Array.isArray(productIds) && productIds.length) {
+    const prods = await Product.find({ _id: { $in: productIds } }, { _id: 1, category: 1 }).lean();
+    const prodSet = new Set(prods.map(p => String(p._id)));
+    const catSet = new Set(prods.filter(p => p.category).map(p => String(p.category)));
+    if (c.includeProducts?.length) {
+      const inc = c.includeProducts.map(String);
+      if (!inc.some(id => prodSet.has(id))) return null;
+    }
+    if (c.excludeProducts?.length) {
+      const exc = c.excludeProducts.map(String);
+      if (exc.some(id => prodSet.has(id))) return null;
+    }
+    if (c.includeCategories?.length) {
+      const inc = c.includeCategories.map(String);
+      if (!inc.some(id => catSet.has(id))) return null;
+    }
+    if (c.excludeCategories?.length) {
+      const exc = c.excludeCategories.map(String);
+      if (exc.some(id => catSet.has(id))) return null;
+    }
+  }
   return c;
 }
 
@@ -50,4 +83,3 @@ export function computeDiscount(coupon, subtotal) {
   if (coupon.type === 'percent') return Math.max(0, Math.round(subtotal * (Number(coupon.value) / 100) * 100) / 100);
   return Math.max(0, Math.min(subtotal, Number(coupon.value)));
 }
-

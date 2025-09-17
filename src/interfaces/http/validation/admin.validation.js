@@ -13,6 +13,14 @@ export const updateOrderSchema = {
   params: z.object({ id: z.string() })
 };
 
+export const returnApproveSchema = {
+  params: z.object({ id: z.string() }),
+  body: z.object({
+    items: z.array(z.object({ product: z.string(), variant: z.string().optional(), quantity: z.coerce.number().int().min(1) })).optional(),
+    amount: z.coerce.number().min(0).optional()
+  }).optional()
+};
+
 export const couponSchema = { body: z.object({ code: z.string().min(2), description: z.string().optional(), type: z.enum(['percent', 'fixed']), value: z.coerce.number().nonnegative(), minSubtotal: z.coerce.number().nonnegative().optional(), expiresAt: z.string().datetime().optional(), isActive: z.coerce.boolean().optional() }) };
 
 export const adjustSchema = { body: z.object({ productId: z.string(), variantId: z.string().optional(), location: z.string().nullable().optional(), qtyChange: z.coerce.number().int(), reason: z.enum(['manual','order','refund','restock','correction']).default('manual'), note: z.string().optional() }) };
@@ -25,8 +33,7 @@ export const importSchema = { body: z.object({ items: z.array(z.object({
   images: z.array(z.object({ url: z.string(), alt: z.string().optional() })).optional(),
   attributes: z.record(z.string()).optional(),
   category: z.string().optional(),
-  variants: z.array(z.object({ sku: z.string().optional(), attributes: z.record(z.string()).optional(), price: z.coerce.number().optional(), priceDelta: z.coerce.number().optional(), stock: z.coerce.number().int().nonnegative().optional(), isActive: z.coerce.boolean().optional() })).optional(),
-  stock: z.coerce.number().int().nonnegative().optional(),
+  variants: z.array(z.object({ sku: z.string().optional(), attributes: z.record(z.string()).optional(), price: z.coerce.number().optional(), priceDelta: z.coerce.number().optional(), isActive: z.coerce.boolean().optional() })).optional(),
   isActive: z.coerce.boolean().optional(),
   slug: z.string().optional()
 })) }) };
@@ -38,3 +45,14 @@ export const priceBulkSchema = { body: z.object({
 
 export const categoryBulkSchema = { body: z.object({ categoryId: z.string(), productIds: z.array(z.string()).min(1) }) };
 
+export const shipmentCreateSchema = { params: z.object({ id: z.string() }), body: z.object({
+  carrier: z.string().optional(),
+  service: z.string().optional(),
+  tracking: z.string().optional(),
+  items: z.array(z.object({ product: z.string(), variant: z.string().optional(), name: z.string().optional(), quantity: z.coerce.number().int().min(1) })).optional()
+}) };
+
+export const variantsMatrixSchema = { body: z.object({
+  options: z.record(z.array(z.string().min(1)).min(1)),
+  base: z.object({ price: z.coerce.number().nonnegative().optional(), skuPrefix: z.string().optional() }).optional()
+}) };

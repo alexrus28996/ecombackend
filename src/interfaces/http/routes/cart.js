@@ -8,9 +8,10 @@ import {
   removeItem as removeItemController,
   clearCart as clearCartController,
   applyCoupon as applyCouponController,
-  removeCoupon as removeCouponController
+  removeCoupon as removeCouponController,
+  estimate as estimateController
 } from '../controllers/cart.controller.js';
-import { addSchema, updateSchema, couponSchema } from '../validation/cart.validation.js';
+import { addSchema, updateSchema, couponSchema, estimateSchema } from '../validation/cart.validation.js';
 
 /**
  * Cart routes: get, add/update/remove items, clear.
@@ -40,3 +41,6 @@ router.post('/coupon', validate(couponSchema), applyCouponController);
 
 // Remove coupon
 router.delete('/coupon', removeCouponController);
+
+// Estimate shipping/tax for current cart
+router.post('/estimate', validate(estimateSchema), estimateController);

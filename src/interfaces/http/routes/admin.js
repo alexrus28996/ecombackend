@@ -24,6 +24,14 @@ import {
   listReturnsController,
   approveReturnController,
   rejectReturnController,
+  listTransactionsController,
+  getTransactionController,
+  listRefundsAdminController,
+  getRefundAdminController,
+  listShipmentsController,
+  createShipmentController,
+  getShipmentController,
+  listOrderShipmentsController,
   importProductsController,
   exportProductsController,
   salesReportController,
@@ -31,9 +39,12 @@ import {
   topCustomersReportController,
   lowStockController,
   priceBulkController,
-  categoryBulkController
+  categoryBulkController,
+  productReferencesController,
+  brandReferencesController
 } from '../controllers/admin.controller.js';
-import { idParam, updateUserSchema, updateOrderSchema, couponSchema, adjustSchema, importSchema, priceBulkSchema, categoryBulkSchema } from '../validation/admin.validation.js';
+import { idParam, updateUserSchema, updateOrderSchema, couponSchema, adjustSchema, importSchema, priceBulkSchema, categoryBulkSchema, shipmentCreateSchema, variantsMatrixSchema, returnApproveSchema } from '../validation/admin.validation.js';
+import { idempotency } from '../../../middleware/idempotency.js';
 import {
   listCategories as listCategoriesController,
   createCategory as createCategoryController,
@@ -44,6 +55,8 @@ import {
   deleteCategory as deleteCategoryController
 } from '../controllers/categories.controller.js';
 import { categorySchema, reorderSchema } from '../validation/categories.validation.js';
+import { brandSchema as brandCreateSchema, idParam as brandIdParam } from '../validation/brands.validation.js';
+import { listBrands as listBrandsController, createBrand as createBrandController, getBrand as getBrandController, updateBrand as updateBrandController, deleteBrand as deleteBrandController } from '../controllers/brands.controller.js';
 
 export const router = Router();
 
@@ -77,14 +90,28 @@ router.get('/inventory/low', authRequired, requireRole(ROLES.ADMIN), lowStockCon
 
 // Returns
 router.get('/returns', authRequired, requireRole(ROLES.ADMIN), listReturnsController);
-router.post('/returns/:id/approve', authRequired, requireRole(ROLES.ADMIN), approveReturnController);
+router.post('/returns/:id/approve', authRequired, requireRole(ROLES.ADMIN), idempotency, validate(returnApproveSchema), approveReturnController);
 router.post('/returns/:id/reject', authRequired, requireRole(ROLES.ADMIN), rejectReturnController);
+
+// Transactions & Refunds
+router.get('/transactions', authRequired, requireRole(ROLES.ADMIN), listTransactionsController);
+router.get('/transactions/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getTransactionController);
+router.get('/refunds', authRequired, requireRole(ROLES.ADMIN), listRefundsAdminController);
+router.get('/refunds/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getRefundAdminController);
+
+// Shipments
+router.get('/shipments', authRequired, requireRole(ROLES.ADMIN), listShipmentsController);
+router.post('/orders/:id/shipments', authRequired, requireRole(ROLES.ADMIN), validate(shipmentCreateSchema), createShipmentController);
+router.get('/shipments/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getShipmentController);
+router.get('/orders/:id/shipments', authRequired, requireRole(ROLES.ADMIN), validate(idParam), listOrderShipmentsController);
 
 // Products admin helpers
 router.post('/products/import', authRequired, requireRole(ROLES.ADMIN), validate(importSchema), importProductsController);
 router.get('/products/export', authRequired, requireRole(ROLES.ADMIN), exportProductsController);
 router.post('/products/price-bulk', authRequired, requireRole(ROLES.ADMIN), validate(priceBulkSchema), priceBulkController);
 router.post('/products/category-bulk', authRequired, requireRole(ROLES.ADMIN), validate(categoryBulkSchema), categoryBulkController);
+router.post('/products/variants-matrix', authRequired, requireRole(ROLES.ADMIN), validate(variantsMatrixSchema), variantsMatrixController);
+router.get('/products/:id/references', authRequired, requireRole(ROLES.ADMIN), validate(idParam), productReferencesController);
 
 // Reports
 router.get('/reports/sales', authRequired, requireRole(ROLES.ADMIN), salesReportController);
@@ -99,3 +126,11 @@ router.put('/categories/:id', authRequired, requireRole(ROLES.ADMIN), validate(c
 router.delete('/categories/:id', authRequired, requireRole(ROLES.ADMIN), deleteCategoryController);
 router.get('/categories/:id/children', authRequired, requireRole(ROLES.ADMIN), listChildrenController);
 router.post('/categories/:id/reorder', authRequired, requireRole(ROLES.ADMIN), validate(reorderSchema), reorderChildrenController);
+
+// Brands (admin)
+router.get('/brands', authRequired, requireRole(ROLES.ADMIN), listBrandsController);
+router.post('/brands', authRequired, requireRole(ROLES.ADMIN), validate(brandCreateSchema), createBrandController);
+router.get('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandIdParam), getBrandController);
+router.put('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandCreateSchema), updateBrandController);
+router.delete('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandIdParam), deleteBrandController);
+router.get('/brands/:id/references', authRequired, requireRole(ROLES.ADMIN), validate(brandIdParam), brandReferencesController);

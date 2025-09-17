@@ -8,6 +8,7 @@ import { router as categories } from './categories.js';
 import { router as reviews } from './reviews.js';
 import { router as payments } from './payments.js';
 import { router as uploads } from './uploads.js';
+import { router as addresses } from './addresses.js';
 
 /**
  * API router aggregator. Mounts domain routers under their prefixes.
@@ -23,3 +24,4 @@ router.use('/categories', categories);
 router.use('/products/:productId/reviews', reviews);
 router.use('/payments', payments);
 router.use('/uploads', uploads);
+router.use('/addresses', addresses);

@@ -6,6 +6,9 @@
 - Create (admin): `POST /api/products`
 - Update (admin): `PUT /api/products/:id`
 - Delete (admin): `DELETE /api/products/:id`
+- Brands (admin):
+  - List/Create: `GET|POST /api/admin/brands`
+  - Get/Update/Delete: `GET|PUT|DELETE /api/admin/brands/:id`
 - Categories:
   - List: `GET /api/categories?parent=`
   - Create/Update/Delete (admin)
@@ -16,8 +19,14 @@
   - Delete (owner/admin): `DELETE /api/products/:id/reviews/:reviewId`
 
 ## Variants/SKUs
-- Product supports `variants`: each may have `sku`, `attributes` (e.g., size/color), `price` or `priceDelta`, and `stock`.
+- Product supports `variants`: each may have `sku`, `attributes` (e.g., size/color), and `price` or `priceDelta`.
 - Cart operations accept `variantId` to target specific variant lines.
+
+### Variant matrix helper (admin)
+- Build attribute combinations (Cartesian product) to seed `variants`:
+  - `POST /api/admin/products/variants-matrix`
+  - Body example: `{ "options": { "size": ["S","M"], "color": ["Red","Blue"] }, "base": { "skuPrefix": "TSHIRT" } }`
+  - Response: `{ count, variants: [{ attributes: { size, color }, sku? }, ...] }`
 
 ## Images
 - Local upload (admin): `POST /api/uploads` (field `file`) → `{ url }` → store in product.images[].url
@@ -29,3 +38,5 @@
 - Price update %: `POST /api/admin/products/price-bulk` { factorPercent, filter? }
 - Category assign: `POST /api/admin/products/category-bulk` { categoryId, productIds }
 
+## Notes
+- Product list (`GET /api/products`) populates `category{name,slug}` and `brand{name,slug}`.

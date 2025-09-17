@@ -6,7 +6,8 @@
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:4001" },
-    { "key": "token", "value": "" }
+    { "key": "token", "value": "" },
+    { "key": "uuid", "value": "" }
   ],
   "item": [
     {
@@ -19,10 +20,17 @@
       ]
     },
     {
+      "name": "Addresses",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/addresses" } },
+        { "name": "Create", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/addresses", "body": { "mode": "raw", "raw": "{\n  \"type\": \"shipping\",\n  \"fullName\": \"John Doe\",\n  \"line1\": \"123 Main St\",\n  \"city\": \"NYC\",\n  \"country\": \"US\",\n  \"isDefault\": true\n}" } } }
+      ]
+    },
+    {
       "name": "Products",
       "item": [
         { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/api/products" } },
-        { "name": "Create (admin)", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/products", "body": { "mode": "raw", "raw": "{\n  \"name\": \"T-Shirt\",\n  \"price\": 19.99,\n  \"currency\": \"USD\",\n  \"stock\": 10\n}" } } }
+        { "name": "Create (admin)", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/products", "body": { "mode": "raw", "raw": "{\n  \"name\": \"T-Shirt\",\n  \"price\": 19.99,\n  \"currency\": \"USD\",\n  \"brand\": \"Acme\",\n  \"attributes\": { \"material\": \"cotton\" },\n  \"category\": \"<categoryId>\"\n}" } } }
       ]
     },
     {
@@ -37,14 +45,16 @@
       "item": [
         { "name": "Get Cart", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/cart" } },
         { "name": "Add Item", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/cart/items", "body": { "mode": "raw", "raw": "{\n  \"productId\": \"<productId>\",\n  \"quantity\": 1\n}" } } },
+        { "name": "Add Item (variant)", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/cart/items", "body": { "mode": "raw", "raw": "{\n  \"productId\": \"<productId>\",\n  \"variantId\": \"<variantId>\",\n  \"quantity\": 1\n}" } } },
         { "name": "Apply Coupon", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/cart/coupon", "body": { "mode": "raw", "raw": "{\n  \"code\": \"SAVE10\"\n}" } } }
       ]
     },
     {
       "name": "Orders",
       "item": [
-        { "name": "Create", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/orders", "body": { "mode": "raw", "raw": "{\n  \"shipping\": 0,\n  \"taxRate\": 0\n}" } } },
-        { "name": "List", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/orders" } }
+        { "name": "Create", "request": { "method": "POST", "header": [ {"key":"Idempotency-Key","value":"{{uuid}}"}, {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/orders", "body": { "mode": "raw", "raw": "{\n  \"shipping\": 0,\n  \"taxRate\": 0\n}" } } },
+        { "name": "List", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/orders" } },
+        { "name": "Request Return", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/orders/<orderId>/returns", "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Not needed\"\n}" } } }
       ]
     },
     {
@@ -53,7 +63,17 @@
         { "name": "Metrics", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/metrics" } },
         { "name": "List Users", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/users" } },
         { "name": "Sales Report", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/reports/sales" } },
-        { "name": "Create Coupon", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/admin/coupons", "body": { "mode": "raw", "raw": "{\n  \"code\": \"SAVE10\",\n  \"type\": \"percent\",\n  \"value\": 10\n}" } } }
+        { "name": "Create Coupon", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/admin/coupons", "body": { "mode": "raw", "raw": "{\n  \"code\": \"SAVE10\",\n  \"type\": \"percent\",\n  \"value\": 10\n}" } } },
+        { "name": "List Returns", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/returns" } },
+        { "name": "Approve Return", "request": { "method": "POST", "header": [ {"key":"Idempotency-Key","value":"{{uuid}}"}, {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/returns/<returnId>/approve" } },
+        { "name": "Reject Return", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/returns/<returnId>/reject" } },
+        { "name": "Admin Categories List", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/categories" } },
+        { "name": "Admin Create Category", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/admin/categories", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Shirts\",\n  \"slug\": \"shirts\"\n}" } } },
+        { "name": "Admin Reorder Categories", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/admin/categories/<id>/reorder", "body": { "mode": "raw", "raw": "{\n  \"ids\": [\"<childId1>\", \"<childId2>\"]\n}" } } },
+        { "name": "List Transactions", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/transactions" } },
+        { "name": "List Refunds", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/refunds" } },
+        { "name": "Create Shipment", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/admin/orders/<orderId>/shipments", "body": { "mode": "raw", "raw": "{\n  \"carrier\": \"UPS\",\n  \"tracking\": \"1Z...\"\n}" } } },
+        { "name": "List Shipments", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/shipments" } }
       ]
     },
     {
@@ -67,7 +87,29 @@
       "item": [
         { "name": "Upload Image (admin)", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/uploads", "body": { "mode": "formdata", "formdata": [ { "key": "file", "type": "file", "src": [] } ] } } }
       ]
+    },
+    {
+      "name": "Brands (Admin)",
+      "item": [
+        { "name": "List Brands", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/brands" } },
+        { "name": "Create Brand", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/admin/brands", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Acme\"\n}" } } },
+        { "name": "Get Brand", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/brands/<id>" } },
+        { "name": "Update Brand", "request": { "method": "PUT", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/admin/brands/<id>", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Acme Updated\"\n}" } } },
+        { "name": "Delete Brand", "request": { "method": "DELETE", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/brands/<id>" } },
+        { "name": "Brand References", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/brands/<id>/references" } }
+      ]
+    },
+    {
+      "name": "Products (Admin)",
+      "item": [
+        { "name": "Product References", "request": { "method": "GET", "header": [ {"key":"Authorization","value":"Bearer {{token}}"} ], "url": "{{baseUrl}}/api/admin/products/<id>/references" } }
+      ]
+    },
+    {
+      "name": "Cart Extras",
+      "item": [
+        { "name": "Estimate", "request": { "method": "POST", "header": [ {"key":"Authorization","value":"Bearer {{token}}"}, {"key":"Content-Type","value":"application/json"} ], "url": "{{baseUrl}}/api/cart/estimate", "body": { "mode": "raw", "raw": "{\n  \"taxRate\": 0.15\n}" } } }
+      ]
     }
   ]
 }
-

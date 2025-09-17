@@ -9,7 +9,7 @@ import {
 import { authRequired, requireRole } from '../../../middleware/auth.js';
 import { validate } from '../../../middleware/validate.js';
 import { ROLES } from '../../../config/constants.js';
-import { productSchema } from '../validation/products.validation.js';
+import { productCreateSchema, productUpdateSchema } from '../validation/products.validation.js';
 
 /**
  * Product catalog routes: list, detail, and admin CRUD.
@@ -23,10 +23,10 @@ router.get('/', listProductsController);
 router.get('/:id', getProductController);
 
 // Create a product (admin)
-router.post('/', authRequired, requireRole(ROLES.ADMIN), validate(productSchema), createProductController);
+router.post('/', authRequired, requireRole(ROLES.ADMIN), validate(productCreateSchema), createProductController);
 
 // Update a product (admin)
-router.put('/:id', authRequired, requireRole(ROLES.ADMIN), validate(productSchema), updateProductController);
+router.put('/:id', authRequired, requireRole(ROLES.ADMIN), validate(productUpdateSchema), updateProductController);
 
 // Delete a product (admin)
 router.delete('/:id', authRequired, requireRole(ROLES.ADMIN), deleteProductController);

@@ -7,22 +7,28 @@ import { errors, ERROR_CODES } from '../../errors/index.js';
  * Adjust stock for a product or specific variant.
  * qtyChange: positive to add, negative to subtract. Prevents negative stock.
  */
-export async function adjustStock({ productId, variantId, qtyChange, reason = 'manual', note, byUserId, location = null }) {
-  const product = await Product.findById(productId);
+export async function adjustStock({ productId, variantId, qtyChange, reason = 'manual', note, byUserId, location = null, session = null }) {
+  const product = session ? await Product.findById(productId).session(session) : await Product.findById(productId);
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
 
   // Find inventory record or initialize from product/variant stock
-  let inv = await Inventory.findOne({ product: productId, variant: variantId || null, location });
+  let invQuery = Inventory.findOne({ product: productId, variant: variantId || null, location });
+  if (session) invQuery = invQuery.session(session);
+  let inv = await invQuery;
   if (!inv) {
-    let initial = 0;
+    // Treat Inventory as the single source of truth; initialize new records with qty: 0
     if (variantId) {
       const variant = product.variants?.find(v => v._id.toString() === String(variantId));
       if (!variant) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
-      initial = Number(variant.stock || 0);
-      inv = await Inventory.create({ product: productId, variant: variantId, sku: variant.sku, qty: initial, location });
+      inv = await Inventory.create([
+        { product: productId, variant: variantId, sku: variant.sku, qty: 0, location }
+      ], { session });
+      inv = inv[0];
     } else {
-      initial = Number(product.stock || 0);
-      inv = await Inventory.create({ product: productId, qty: initial, location });
+      inv = await Inventory.create([
+        { product: productId, qty: 0, location }
+      ], { session });
+      inv = inv[0];
     }
   }
 
@@ -30,9 +36,9 @@ export async function adjustStock({ productId, variantId, qtyChange, reason = 'm
   const newStock = previousStock + Number(qtyChange || 0);
   if (newStock < 0) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK);
   inv.qty = newStock;
-  await inv.save();
+  await inv.save({ session: session || undefined });
 
-  const adj = await InventoryAdjustment.create({
+  const adjDocs = await InventoryAdjustment.create([{
     product: product._id,
     variant: variantId || undefined,
     qtyChange,
@@ -41,8 +47,8 @@ export async function adjustStock({ productId, variantId, qtyChange, reason = 'm
     previousStock,
     newStock,
     user: byUserId
-  });
-  return { product, inventory: inv, adjustment: adj };
+  }], { session: session || undefined });
+  return { product, inventory: inv, adjustment: adjDocs[0] };
 }
 
 export async function listAdjustments({ product, variant, reason, page = 1, limit = 20 } = {}) {
@@ -61,18 +67,14 @@ export async function listAdjustments({ product, variant, reason, page = 1, limi
 }
 
 /**
- * Get current stock for product/variant using Inventory model if present; fallback to product fields.
+ * Get current stock for product/variant using Inventory model only.
+ * If no inventory record exists, treats available stock as 0.
  */
 export async function getAvailableStock(productId, variantId) {
   const inv = await Inventory.findOne({ product: productId, variant: variantId || null, location: null });
   if (inv) return Number(inv.qty || 0);
-  const product = await Product.findById(productId).lean();
-  if (!product) return 0;
-  if (variantId) {
-    const variant = (product.variants || []).find(v => String(v._id) === String(variantId));
-    return Number(variant?.stock || 0);
-  }
-  return Number(product.stock || 0);
+  // Inventory is the source of truth; if no record, treat as zero
+  return 0;
 }
 
 export async function listInventory({ product, variant, location, page = 1, limit = 20 } = {}) {
@@ -89,4 +91,3 @@ export async function listInventory({ product, variant, location, page = 1, limi
   ]);
   return { items, total, page: p, pages: Math.ceil(total / l || 1) };
 }
-

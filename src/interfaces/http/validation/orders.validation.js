@@ -14,8 +14,8 @@ const address = z.object({
 export const createOrderSchema = {
   body: z.object({
     shippingAddress: address.optional(),
+    billingAddress: address.optional(),
     shipping: z.coerce.number().nonnegative().default(0),
     taxRate: z.coerce.number().min(0).max(1).default(0)
   })
 };
-

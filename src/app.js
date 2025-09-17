@@ -30,6 +30,17 @@ export function createApp() {
     genReqId: (req, res) => req.headers['x-request-id'] || crypto.randomUUID(),
     customProps: (req) => ({ requestId: req.id })
   }));
+  // Basic request timing metrics
+  app.use((req, res, next) => {
+    const start = process.hrtime.bigint();
+    res.on('finish', () => {
+      try {
+        const durMs = Number(process.hrtime.bigint() - start) / 1e6;
+        req.log.info({ responseTimeMs: Math.round(durMs) }, 'request_timing');
+      } catch {}
+    });
+    next();
+  });
   app.use((req, res, next) => {
     if (req.id) res.setHeader('X-Request-Id', req.id);
     next();

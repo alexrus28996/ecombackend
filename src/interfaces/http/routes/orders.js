@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authRequired } from '../../../middleware/auth.js';
 import { validate } from '../../../middleware/validate.js';
+import { idempotency } from '../../../middleware/idempotency.js';
 import {
   createOrder as createOrderController,
   listOrders as listOrdersController,
@@ -20,7 +21,7 @@ export const router = Router();
 router.use(authRequired);
 
 // Create an order from the current user's cart
-router.post('/', validate(createOrderSchema), createOrderController);
+router.post('/', idempotency, validate(createOrderSchema), createOrderController);
 
 // List current user's orders
 router.get('/', listOrdersController);

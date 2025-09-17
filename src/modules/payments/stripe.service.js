@@ -1,8 +1,11 @@
 import Stripe from 'stripe';
 import { config } from '../../config/index.js';
 import { Order } from '../orders/order.model.js';
+import { PaymentEvent } from './payment-event.model.js';
+import { PaymentTransaction } from './payment-transaction.model.js';
 import { addTimeline } from '../orders/timeline.service.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
+import { Reservation } from '../inventory/reservation.model.js';
 
 const stripe = config.STRIPE_SECRET_KEY ? new Stripe(config.STRIPE_SECRET_KEY) : null;
 
@@ -29,6 +32,7 @@ export async function createPaymentIntentForOrder(orderId, userId) {
   order.paymentProvider = 'stripe';
   order.transactionId = intent.id;
   await order.save();
+  try { await Reservation.updateMany({ order: order._id, status: 'reserved' }, { $set: { status: 'consumed' } }); } catch {}
   return { clientSecret: intent.client_secret };
 }
 
@@ -40,6 +44,12 @@ export function constructStripeEvent(rawBody, signature) {
 }
 
 export async function applyPaymentIntentSucceeded(pi) {
+  // Idempotency: skip if we've processed this eventId already
+  try {
+    await PaymentEvent.create({ provider: 'stripe', eventId: pi.id, type: pi.type || 'payment_intent.succeeded', order: pi?.metadata?.orderId });
+  } catch (e) {
+    if (e?.code === 11000) return; // duplicate event
+  }
   const orderId = pi?.metadata?.orderId;
   if (!orderId) return;
   const order = await Order.findById(orderId);
@@ -50,6 +60,9 @@ export async function applyPaymentIntentSucceeded(pi) {
   order.paymentProvider = 'stripe';
   order.transactionId = pi.id;
   await order.save();
+  try {
+    await PaymentTransaction.create({ order: order._id, provider: 'stripe', status: 'succeeded', amount: pi.amount_received ? pi.amount_received / 100 : order.total, currency: (order.currency || 'USD').toUpperCase(), providerRef: pi.id, raw: pi });
+  } catch {}
   try { await addTimeline(order._id, { type: 'payment_succeeded', message: 'Payment succeeded (Stripe)' }); } catch {}
 }
 

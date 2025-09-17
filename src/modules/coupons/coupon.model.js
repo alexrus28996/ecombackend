@@ -9,9 +9,14 @@ const couponSchema = new mongoose.Schema(
     minSubtotal: { type: Number, default: 0 },
     expiresAt: { type: Date },
     isActive: { type: Boolean, default: true },
+    includeCategories: { type: [mongoose.Schema.Types.ObjectId], ref: 'Category', default: [] },
+    excludeCategories: { type: [mongoose.Schema.Types.ObjectId], ref: 'Category', default: [] },
+    includeProducts: { type: [mongoose.Schema.Types.ObjectId], ref: 'Product', default: [] },
+    excludeProducts: { type: [mongoose.Schema.Types.ObjectId], ref: 'Product', default: [] },
+    perUserLimit: { type: Number, default: 0 },
+    globalLimit: { type: Number, default: 0 }
   },
   { timestamps: true }
 );
 
 export const Coupon = mongoose.model('Coupon', couponSchema);
-
