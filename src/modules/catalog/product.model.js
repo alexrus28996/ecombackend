@@ -46,7 +46,7 @@ const productSchema = new mongoose.Schema(
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
     brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     vendor: { type: String, trim: true },
-    sku: { type: String, trim: true },
+    sku: { type: String, trim: true, unique: true, sparse: true },
     barcode: { type: String, trim: true },
     mpn: { type: String, trim: true },
     taxClass: { type: String, trim: true },
@@ -80,5 +80,18 @@ productSchema.pre('save', function (next) {
 productSchema.index({ category: 1 });
 // slug already has unique constraint on field definition; avoid duplicate index
 productSchema.index({ name: 'text', description: 'text' });
+
+// Ensure variant SKU values remain unique per product document.
+productSchema.path('variants').validate(function (variants) {
+  if (!Array.isArray(variants)) return true;
+  const seen = new Set();
+  for (const variant of variants) {
+    if (!variant || typeof variant.sku !== 'string' || variant.sku.trim() === '') continue;
+    const normalized = variant.sku.trim().toLowerCase();
+    if (seen.has(normalized)) return false;
+    seen.add(normalized);
+  }
+  return true;
+}, 'Variant SKU values must be unique per product.');
 
 export const Product = mongoose.model('Product', productSchema);
