@@ -4,6 +4,7 @@ import { connectMongo, disconnectMongo } from '../src/db/mongo.js';
 import { Order } from '../src/modules/orders/order.model.js';
 import { adjustStock } from '../src/modules/inventory/inventory.service.js';
 import { addTimeline } from '../src/modules/orders/timeline.service.js';
+import { t } from '../src/i18n/index.js';
 import { Reservation } from '../src/modules/inventory/reservation.model.js';
 
 async function main() {
@@ -28,7 +29,7 @@ async function main() {
       try { await Reservation.updateMany({ order: ord._id, status: 'reserved' }, { $set: { status: 'released' } }); } catch {}
       ord.status = 'cancelled';
       await ord.save();
-      await addTimeline(ord._id, { type: 'auto_cancel', message: `Order auto-cancelled after ${minutes} minutes` });
+      await addTimeline(ord._id, { type: 'auto_cancel', message: t('timeline.auto_cancel', { minutes }) });
       processed++;
     } catch (e) {
       console.error('Failed to cancel order', ord._id.toString(), e.message);

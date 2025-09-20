@@ -10,6 +10,7 @@ import { deliverEmail } from '../../utils/mailer.js';
 import { Reservation } from '../inventory/reservation.model.js';
 import { calcShipping, calcTax } from '../checkout/pricing.service.js';
 import { addTimeline } from './timeline.service.js';
+import { t } from '../../i18n/index.js';
 import { Address } from '../users/address.model.js';
 
 /**
@@ -88,12 +89,12 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
 
     // Generate invoice
     const created = orderDocs[0];
-    await addTimeline(created._id, { type: 'created', message: 'Order created', userId });
+    await addTimeline(created._id, { type: 'created', message: t('timeline.order_created'), userId });
     const { invoiceNumber, invoiceUrl } = await generateInvoicePdf(created);
     created.invoiceNumber = invoiceNumber;
     created.invoiceUrl = invoiceUrl;
     await created.save({ session: sess || undefined });
-    await addTimeline(created._id, { type: 'invoice_generated', message: `Invoice ${invoiceNumber} generated` });
+    await addTimeline(created._id, { type: 'invoice_generated', message: t('timeline.invoice_generated', { invoiceNumber }) });
     // Record reservations for audit/ops (reserved until paid or released on cancel)
     try {
       const resDocs = items.map((it) => ({ order: created._id, user: userId, product: it.product, variant: it.variant || null, quantity: it.quantity, status: 'reserved', reason: 'order' }));
@@ -123,7 +124,7 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
   }
 
   // Notify (dev logs)
-  try { await deliverEmail({ to: created.user?.email || 'customer@example.com', subject: `Invoice ${created.invoiceNumber}`, text: `Your invoice: ${created.invoiceUrl}` }); } catch {}
+  try { await deliverEmail({ to: created.user?.email || 'customer@example.com', subject: t('email.invoice_subject', { invoiceNumber: created.invoiceNumber }), text: t('email.invoice_body', { invoiceUrl: created.invoiceUrl }) }); } catch {}
   return created;
 }
 

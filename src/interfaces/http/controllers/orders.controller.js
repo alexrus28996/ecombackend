@@ -1,4 +1,5 @@
 import { createOrderFromCart as svcCreateFromCart, listOrders as svcList, getOrder as svcGet } from '../../../modules/orders/order.service.js';
+import { t } from '../../../i18n/index.js';
 import { listTimeline as svcListTimeline, addTimeline } from '../../../modules/orders/timeline.service.js';
 import { ReturnRequest } from '../../../modules/orders/return.model.js';
 import { errors, ERROR_CODES } from '../../../errors/index.js';
@@ -21,7 +22,7 @@ export async function getOrder(req, res) {
 
 export async function getInvoice(req, res) {
   const order = await svcGet(req.user.sub, req.params.id);
-  if (!order.invoiceUrl) return res.status(404).json({ error: { message: 'Invoice not available' } });
+  if (!order.invoiceUrl) return res.status(404).json({ error: { message: t('errors.invoice_unavailable') } });
   res.redirect(order.invoiceUrl);
 }
 
@@ -41,4 +42,3 @@ export async function requestReturn(req, res, next) {
   await addTimeline(order._id, { type: 'return_requested', message: 'Return requested', userId: req.user.sub });
   res.status(201).json({ return: rr });
 }
-

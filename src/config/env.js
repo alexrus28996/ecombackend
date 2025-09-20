@@ -43,6 +43,8 @@ export function loadEnv(raw = process.env) {
     HEALTH_PATH: str({ default: '/health' }),
     DOCS_PATH: str({ default: '/docs' })
     ,
+    LOCALE: str({ default: 'en-US' })
+    ,
     // Payments (Stripe)
     STRIPE_SECRET_KEY: str({ default: '' }),
     STRIPE_WEBHOOK_SECRET: str({ default: '' }),

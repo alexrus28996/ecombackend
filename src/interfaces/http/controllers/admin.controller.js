@@ -1,5 +1,6 @@
 import { User } from '../../../modules/users/user.model.js';
 import { Product } from '../../../modules/catalog/product.model.js';
+import { t } from '../../../i18n/index.js';
 import { Order } from '../../../modules/orders/order.model.js';
 import { ROLES, ORDER_STATUS, PAYMENT_STATUS } from '../../../config/constants.js';
 import { config } from '../../../config/index.js';
@@ -118,14 +119,14 @@ export async function listOrders(req, res) {
 
 export async function getOrder(req, res) {
   const ord = await Order.findById(req.validated.params.id);
-  if (!ord) return res.status(404).json({ error: { message: 'Order not found' } });
+  if (!ord) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
   res.json({ order: ord });
 }
 
 export async function updateOrder(req, res) {
   const { id } = req.validated.params;
   const ord = await Order.findById(id);
-  if (!ord) return res.status(404).json({ error: { message: 'Order not found' } });
+  if (!ord) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
   const { status, paymentStatus } = req.validated.body;
   if (status && status !== ord.status) {
     await addTimeline(ord._id, { type: 'status_updated', message: `Status: ${ord.status} -> ${status}`, userId: req.user.sub, from: ord.status, to: status });
@@ -201,10 +202,10 @@ export async function listReturnsController(req, res) {
 
 export async function approveReturnController(req, res) {
   const rr = await ReturnRequest.findById(req.params.id);
-  if (!rr) return res.status(404).json({ error: { message: 'Return request not found' } });
-  if (rr.status !== 'requested') return res.status(400).json({ error: { message: 'Return already processed' } });
+  if (!rr) return res.status(404).json({ error: { message: t('errors.return_not_found') } });
+  if (rr.status !== 'requested') return res.status(400).json({ error: { message: t('errors.return_processed') } });
   const order = await Order.findById(rr.order);
-  if (!order) return res.status(404).json({ error: { message: 'Order not found' } });
+  if (!order) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
 
   // 1) Attempt refund with provider first (to avoid refund success but DB failure later)
   let refundDoc;
@@ -284,8 +285,8 @@ export async function approveReturnController(req, res) {
 
 export async function rejectReturnController(req, res) {
   const rr = await ReturnRequest.findById(req.params.id);
-  if (!rr) return res.status(404).json({ error: { message: 'Return request not found' } });
-  if (rr.status !== 'requested') return res.status(400).json({ error: { message: 'Return already processed' } });
+  if (!rr) return res.status(404).json({ error: { message: t('errors.return_not_found') } });
+  if (rr.status !== 'requested') return res.status(400).json({ error: { message: t('errors.return_processed') } });
   rr.status = 'rejected';
   rr.rejectedAt = new Date();
   rr.approvedBy = req.user.sub;
@@ -357,7 +358,7 @@ export async function listShipmentsController(req, res) {
 
 export async function createShipmentController(req, res) {
   const order = await Order.findById(req.params.id);
-  if (!order) return res.status(404).json({ error: { message: 'Order not found' } });
+  if (!order) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
   const { carrier, tracking, service, items } = req.validated.body || {};
   const payload = {
     order: order._id,
@@ -368,13 +369,13 @@ export async function createShipmentController(req, res) {
     items: Array.isArray(items) && items.length > 0 ? items : order.items.map((it) => ({ product: it.product, variant: it.variant, name: it.name, quantity: it.quantity }))
   };
   const shp = await Shipment.create(payload);
-  try { await addTimeline(order._id, { type: 'shipment_created', message: `Shipment ${shp._id} created` }); } catch {}
+  try { await addTimeline(order._id, { type: 'shipment_created', message: t('admin.shipment_created', { shipmentId: shp._id }) }); } catch {}
   res.status(201).json({ shipment: shp });
 }
 
 export async function getShipmentController(req, res) {
   const item = await Shipment.findById(req.params.id);
-  if (!item) return res.status(404).json({ error: { message: 'Shipment not found' } });
+  if (!item) return res.status(404).json({ error: { message: t('errors.shipment_not_found') } });
   res.json({ shipment: item });
 }
 

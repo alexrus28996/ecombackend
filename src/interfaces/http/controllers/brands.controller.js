@@ -1,5 +1,6 @@
 import { listBrands as svcList, createBrand as svcCreate, getBrand as svcGet, updateBrand as svcUpdate, deleteBrand as svcDelete } from '../../../modules/catalog/brand.service.js';
 import { ERROR_CODES } from '../../../errors/index.js';
+import { t } from '../../../i18n/index.js';
 
 export async function listBrands(req, res) {
   const { q, page, limit } = req.query;
@@ -14,13 +15,13 @@ export async function createBrand(req, res) {
 
 export async function getBrand(req, res) {
   const brand = await svcGet(req.params.id);
-  if (!brand) return res.status(404).json({ error: { message: 'Brand not found' } });
+  if (!brand) return res.status(404).json({ error: { message: t('errors.brand_not_found') } });
   res.json({ brand });
 }
 
 export async function updateBrand(req, res) {
   const brand = await svcUpdate(req.params.id, req.validated.body);
-  if (!brand) return res.status(404).json({ error: { message: 'Brand not found' } });
+  if (!brand) return res.status(404).json({ error: { message: t('errors.brand_not_found') } });
   res.json({ brand });
 }
 

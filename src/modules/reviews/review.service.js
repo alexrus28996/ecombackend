@@ -1,6 +1,7 @@
 import { Review } from './review.model.js';
 import { Product } from '../catalog/product.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
+import { t } from '../../i18n/index.js';
 import { Order } from '../orders/order.model.js';
 
 export async function listProductReviews(productId, { limit = 20, page = 1, includeUnapproved = false } = {}) {

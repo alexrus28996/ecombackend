@@ -4,6 +4,7 @@ import { Order } from '../orders/order.model.js';
 import { PaymentEvent } from './payment-event.model.js';
 import { PaymentTransaction } from './payment-transaction.model.js';
 import { addTimeline } from '../orders/timeline.service.js';
+import { t } from '../../i18n/index.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { Reservation } from '../inventory/reservation.model.js';
 
@@ -63,7 +64,7 @@ export async function applyPaymentIntentSucceeded(pi) {
   try {
     await PaymentTransaction.create({ order: order._id, provider: 'stripe', status: 'succeeded', amount: pi.amount_received ? pi.amount_received / 100 : order.total, currency: (order.currency || 'USD').toUpperCase(), providerRef: pi.id, raw: pi });
   } catch {}
-  try { await addTimeline(order._id, { type: 'payment_succeeded', message: 'Payment succeeded (Stripe)' }); } catch {}
+  try { await addTimeline(order._id, { type: 'payment_succeeded', message: t('timeline.payment_succeeded_stripe') }); } catch {}
 }
 
 export async function refundPaymentIntent(paymentIntentId, amountCents) {

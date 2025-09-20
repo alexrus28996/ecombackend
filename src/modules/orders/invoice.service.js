@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
+import { t } from '../../i18n/index.js';
 import { config } from '../../config/index.js';
 
 function ensureDirSync(dir) {
@@ -23,28 +24,28 @@ export async function generateInvoicePdf(order) {
     doc.pipe(stream);
 
     // Header
-    doc.fontSize(20).text('Invoice', { align: 'right' });
+    doc.fontSize(20).text(t('pdf.invoice_title'), { align: 'right' });
     doc.moveDown(0.2);
     doc.fontSize(10).text(`Invoice #: ${invoiceNumber}`, { align: 'right' });
     doc.text(`Date: ${new Date(order.createdAt || Date.now()).toISOString().slice(0,10)}`, { align: 'right' });
 
     doc.moveDown();
-    doc.fontSize(12).text('Bill To:', { underline: true });
+    doc.fontSize(12).text(t('pdf.bill_to'), { underline: true });
     const addr = order.shippingAddress || {};
     doc.text(order.user?.name || 'Customer');
     doc.text(addr.fullName || '');
     [addr.line1, addr.line2, addr.city, addr.state, addr.postalCode, addr.country].filter(Boolean).forEach((l) => doc.text(l));
 
     doc.moveDown();
-    doc.fontSize(12).text('Items', { underline: true });
+    doc.fontSize(12).text(t('pdf.items_title'), { underline: true });
     doc.moveDown(0.2);
     doc.fontSize(10);
     const tableTop = doc.y;
     const col = { name: 50, qty: 350, price: 420, total: 500 };
-    doc.text('Product', col.name, tableTop);
-    doc.text('Qty', col.qty, tableTop);
-    doc.text('Price', col.price, tableTop);
-    doc.text('Line Total', col.total, tableTop);
+    doc.text(t('pdf.columns.product'), col.name, tableTop);
+    doc.text(t('pdf.columns.qty'), col.qty, tableTop);
+    doc.text(t('pdf.columns.price'), col.price, tableTop);
+    doc.text(t('pdf.columns.line_total'), col.total, tableTop);
     doc.moveDown(0.5);
     order.items.forEach((it) => {
       const y = doc.y;
@@ -57,11 +58,11 @@ export async function generateInvoicePdf(order) {
 
     doc.moveDown();
     const summaryStart = doc.y + 10;
-    doc.text(`Subtotal: ${order.currency} ${Number(order.subtotal).toFixed(2)}`, 350, summaryStart);
-    if (order.discount) doc.text(`Discount: -${order.currency} ${Number(order.discount).toFixed(2)}`, 350);
-    if (order.shipping) doc.text(`Shipping: ${order.currency} ${Number(order.shipping).toFixed(2)}`, 350);
-    if (order.tax) doc.text(`Tax: ${order.currency} ${Number(order.tax).toFixed(2)}`, 350);
-    doc.fontSize(12).text(`Total: ${order.currency} ${Number(order.total).toFixed(2)}`, 350);
+    doc.text(`${t('pdf.summary.subtotal')}: ${order.currency} ${Number(order.subtotal).toFixed(2)}`, 350, summaryStart);
+    if (order.discount) doc.text(`${t('pdf.summary.discount')}: -${order.currency} ${Number(order.discount).toFixed(2)}`, 350);
+    if (order.shipping) doc.text(`${t('pdf.summary.shipping')}: ${order.currency} ${Number(order.shipping).toFixed(2)}`, 350);
+    if (order.tax) doc.text(`${t('pdf.summary.tax')}: ${order.currency} ${Number(order.tax).toFixed(2)}`, 350);
+    doc.fontSize(12).text(`${t('pdf.summary.total')}: ${order.currency} ${Number(order.total).toFixed(2)}`, 350);
 
     doc.end();
     stream.on('finish', resolve);
@@ -70,4 +71,3 @@ export async function generateInvoicePdf(order) {
   const invoiceUrl = `/uploads/invoices/${path.basename(filePath)}`;
   return { invoiceNumber, invoicePath: filePath, invoiceUrl };
 }
-
