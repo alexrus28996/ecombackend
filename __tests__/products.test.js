@@ -38,5 +38,31 @@ describe('Products service CRUD', () => {
     const list2 = await listProducts({ q: 'belt', limit: 10, page: 1 });
     expect(list2.total).toBe(0);
   });
+
+  test('enforces SKU hygiene for products and variants', async () => {
+    await expect(
+      createProduct({
+        name: 'Gloves',
+        price: 12,
+        currency: 'USD',
+        category: cat._id,
+        variants: [
+          { sku: 'GLO-1', price: 12 },
+          { sku: 'glo-1', price: 12 }
+        ]
+      })
+    ).rejects.toThrow(/variant sku/i);
+
+    const base = {
+      price: 30,
+      currency: 'USD',
+      category: cat._id,
+      variants: [{ sku: 'VAR-1', price: 30 }]
+    };
+
+    await createProduct({ ...base, name: 'Sneakers', sku: 'SKU-100' });
+
+    await expect(createProduct({ ...base, name: 'Boots', sku: 'SKU-100' })).rejects.toThrow(/duplicate key|E11000/i);
+  });
 });
 
