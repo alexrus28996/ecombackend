@@ -6,7 +6,8 @@ import { PaymentTransaction } from './payment-transaction.model.js';
 import { addTimeline } from '../orders/timeline.service.js';
 import { t } from '../../i18n/index.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
-import { Reservation } from '../inventory/reservation.model.js';
+import { convertReservationsToStock } from '../inventory/reservation.service.js';
+import mongoose from 'mongoose';
 
 const stripe = config.STRIPE_SECRET_KEY ? new Stripe(config.STRIPE_SECRET_KEY) : null;
 
@@ -33,7 +34,6 @@ export async function createPaymentIntentForOrder(orderId, userId) {
   order.paymentProvider = 'stripe';
   order.transactionId = intent.id;
   await order.save();
-  try { await Reservation.updateMany({ order: order._id, status: 'reserved' }, { $set: { status: 'consumed' } }); } catch {}
   return { clientSecret: intent.client_secret };
 }
 
@@ -53,17 +53,69 @@ export async function applyPaymentIntentSucceeded(pi) {
   }
   const orderId = pi?.metadata?.orderId;
   if (!orderId) return;
-  const order = await Order.findById(orderId);
-  if (!order) return;
-  order.paymentStatus = 'paid';
-  order.status = 'paid';
-  order.paidAt = new Date();
-  order.paymentProvider = 'stripe';
-  order.transactionId = pi.id;
-  await order.save();
+  const session = await mongoose.startSession();
+  let order;
+  let fallback = false;
   try {
-    await PaymentTransaction.create({ order: order._id, provider: 'stripe', status: 'succeeded', amount: pi.amount_received ? pi.amount_received / 100 : order.total, currency: (order.currency || 'USD').toUpperCase(), providerRef: pi.id, raw: pi });
-  } catch {}
+    try {
+      await session.withTransaction(async () => {
+        order = await Order.findById(orderId).session(session);
+        if (!order) return;
+        order.paymentStatus = 'paid';
+        order.status = 'paid';
+        order.paidAt = new Date();
+        order.paymentProvider = 'stripe';
+        order.transactionId = pi.id;
+        await order.save({ session });
+        await convertReservationsToStock(order._id, { byUserId: order.user, session, note: 'stripe payment succeeded' });
+        await PaymentTransaction.create([
+          {
+            order: order._id,
+            provider: 'stripe',
+            status: 'succeeded',
+            amount: pi.amount_received ? pi.amount_received / 100 : order.total,
+            currency: (order.currency || 'USD').toUpperCase(),
+            providerRef: pi.id,
+            raw: pi
+          }
+        ], { session });
+      });
+    } catch (e) {
+      const msg = String(e && e.message || '');
+      if (msg.includes('Transaction numbers are only allowed') || e?.codeName === 'IllegalOperation') {
+        fallback = true;
+      } else {
+        throw e;
+      }
+    }
+  } finally {
+    try { await session.endSession(); } catch {}
+  }
+
+  if (fallback) {
+    order = await Order.findById(orderId);
+    if (!order) return;
+    order.paymentStatus = 'paid';
+    order.status = 'paid';
+    order.paidAt = new Date();
+    order.paymentProvider = 'stripe';
+    order.transactionId = pi.id;
+    await order.save();
+    await convertReservationsToStock(order._id, { byUserId: order.user, note: 'stripe payment succeeded' });
+    try {
+      await PaymentTransaction.create({
+        order: order._id,
+        provider: 'stripe',
+        status: 'succeeded',
+        amount: pi.amount_received ? pi.amount_received / 100 : order.total,
+        currency: (order.currency || 'USD').toUpperCase(),
+        providerRef: pi.id,
+        raw: pi
+      });
+    } catch {}
+  }
+
+  if (!order) return;
   try { await addTimeline(order._id, { type: 'payment_succeeded', message: t('timeline.payment_succeeded_stripe') }); } catch {}
 }
 

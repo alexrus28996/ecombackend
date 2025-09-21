@@ -6,7 +6,8 @@ const inventorySchema = new mongoose.Schema(
     variant: { type: mongoose.Schema.Types.ObjectId, index: true },
     sku: { type: String },
     location: { type: String },
-    qty: { type: Number, required: true, min: 0, default: 0 }
+    qty: { type: Number, required: true, min: 0, default: 0 },
+    reservedQty: { type: Number, required: true, min: 0, default: 0 }
   },
   { timestamps: true }
 );

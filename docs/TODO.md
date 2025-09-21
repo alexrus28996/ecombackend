@@ -76,7 +76,7 @@ Catalog
 
 Inventory & Warehousing
 - [x] P0 `adjustStock` accepts session; order/return flows pass session
-- [ ] P1 Reservation records on order creation; release on cancel/timeout
+- [x] P1 Reservation records on order creation; release on cancel/timeout
 - [ ] P2 Multi-location stock (warehouses); location-aware picks
 
 Cart & Checkout

@@ -7,6 +7,7 @@ import { config } from '../../../config/index.js';
 import { Coupon } from '../../../modules/coupons/coupon.model.js';
 import { createCoupon, listCoupons, getCoupon, updateCoupon, deleteCoupon } from '../../../modules/coupons/coupon.service.js';
 import { adjustStock, listAdjustments, listInventory } from '../../../modules/inventory/inventory.service.js';
+import { releaseOrderReservations } from '../../../modules/inventory/reservation.service.js';
 import slugify from 'slugify';
 import { ReturnRequest } from '../../../modules/orders/return.model.js';
 import { refundPaymentIntent } from '../../../modules/payments/stripe.service.js';
@@ -130,6 +131,9 @@ export async function updateOrder(req, res) {
   if (status && status !== ord.status) {
     await addTimeline(ord._id, { type: 'status_updated', message: `Status: ${ord.status} -> ${status}`, userId: req.user.sub, from: ord.status, to: status });
     ord.status = status;
+    if (status === ORDER_STATUS.CANCELLED) {
+      await releaseOrderReservations(ord._id, { reason: 'cancelled', notes: `admin:${req.user.sub}` });
+    }
   }
   if (paymentStatus && paymentStatus !== ord.paymentStatus) {
     await addTimeline(ord._id, { type: 'payment_updated', message: `Payment: ${ord.paymentStatus} -> ${paymentStatus}`, userId: req.user.sub, from: ord.paymentStatus, to: paymentStatus });

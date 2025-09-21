@@ -8,7 +8,17 @@ import { ProductVariant } from '../catalog/product-variant.model.js';
  * Adjust stock for a product or specific variant.
  * qtyChange: positive to add, negative to subtract. Prevents negative stock.
  */
-export async function adjustStock({ productId, variantId, qtyChange, reason = 'manual', note, byUserId, location = null, session = null }) {
+export async function adjustStock({
+  productId,
+  variantId,
+  qtyChange,
+  reservedChange = 0,
+  reason = 'manual',
+  note,
+  byUserId,
+  location = null,
+  session = null
+}) {
   const product = session ? await Product.findById(productId).session(session) : await Product.findById(productId);
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
 
@@ -33,10 +43,16 @@ export async function adjustStock({ productId, variantId, qtyChange, reason = 'm
     }
   }
 
+  const deltaQty = Number(qtyChange || 0);
+  const deltaReserved = Number(reservedChange || 0);
   const previousStock = Number(inv.qty || 0);
-  const newStock = previousStock + Number(qtyChange || 0);
-  if (newStock < 0) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK);
+  const previousReserved = Number(inv.reservedQty || 0);
+  const newReserved = previousReserved + deltaReserved;
+  if (newReserved < 0) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK);
+  const newStock = previousStock + deltaQty;
+  if (newStock < 0 || newStock < newReserved) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK);
   inv.qty = newStock;
+  inv.reservedQty = newReserved;
   await inv.save({ session: session || undefined });
 
   const adjDocs = await InventoryAdjustment.create([{
@@ -73,8 +89,18 @@ export async function listAdjustments({ product, variant, reason, page = 1, limi
  */
 export async function getAvailableStock(productId, variantId) {
   const inv = await Inventory.findOne({ product: productId, variant: variantId || null, location: null });
-  if (inv) return Number(inv.qty || 0);
+  if (inv) {
+    const qty = Number(inv.qty || 0);
+    const reserved = Number(inv.reservedQty || 0);
+    return Math.max(0, qty - reserved);
+  }
   // Inventory is the source of truth; if no record, treat as zero
+  return 0;
+}
+
+export async function getReservedStock(productId, variantId) {
+  const inv = await Inventory.findOne({ product: productId, variant: variantId || null, location: null });
+  if (inv) return Number(inv.reservedQty || 0);
   return 0;
 }
 

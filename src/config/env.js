@@ -72,6 +72,8 @@ export function loadEnv(raw = process.env) {
     ,
     // Jobs
     ORDER_AUTO_CANCEL_MINUTES: num({ default: 120 }),
+    RESERVATION_EXPIRES_MINUTES: num({ default: 30 }),
+    RESERVATION_SWEEP_INTERVAL_MS: num({ default: 60 * 1000 }),
     // Queue / Redis
     QUEUE_ENABLED: bool({ default: false }),
     REDIS_URL: str({ default: '' })

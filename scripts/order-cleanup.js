@@ -2,10 +2,9 @@ import 'dotenv/config';
 import { config } from '../src/config/index.js';
 import { connectMongo, disconnectMongo } from '../src/db/mongo.js';
 import { Order } from '../src/modules/orders/order.model.js';
-import { adjustStock } from '../src/modules/inventory/inventory.service.js';
 import { addTimeline } from '../src/modules/orders/timeline.service.js';
 import { t } from '../src/i18n/index.js';
-import { Reservation } from '../src/modules/inventory/reservation.model.js';
+import { releaseOrderReservations } from '../src/modules/inventory/reservation.service.js';
 
 async function main() {
   const minutes = Number(config.ORDER_AUTO_CANCEL_MINUTES) || 120;
@@ -22,11 +21,7 @@ async function main() {
   let processed = 0;
   for (const ord of orders) {
     try {
-      // restock items
-      for (const it of ord.items) {
-        await adjustStock({ productId: it.product, variantId: it.variant || null, qtyChange: Math.abs(it.quantity), reason: 'correction', note: 'Auto-cancel restock', byUserId: undefined });
-      }
-      try { await Reservation.updateMany({ order: ord._id, status: 'reserved' }, { $set: { status: 'released' } }); } catch {}
+      await releaseOrderReservations(ord._id, { reason: 'expired', notes: 'auto-cancel script' });
       ord.status = 'cancelled';
       await ord.save();
       await addTimeline(ord._id, { type: 'auto_cancel', message: t('timeline.auto_cancel', { minutes }) });

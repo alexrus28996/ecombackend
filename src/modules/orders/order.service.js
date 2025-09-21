@@ -4,14 +4,15 @@ import { Product } from '../catalog/product.model.js';
 import { Order } from './order.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { CART_STATUS } from '../../config/constants.js';
-import { adjustStock, getAvailableStock } from '../inventory/inventory.service.js';
+import { getAvailableStock } from '../inventory/inventory.service.js';
 import { generateInvoicePdf } from './invoice.service.js';
 import { deliverEmail } from '../../utils/mailer.js';
-import { Reservation } from '../inventory/reservation.model.js';
+import { reserveOrderItems } from '../inventory/reservation.service.js';
 import { calcShipping, calcTax } from '../checkout/pricing.service.js';
 import { addTimeline } from './timeline.service.js';
 import { t } from '../../i18n/index.js';
 import { Address } from '../users/address.model.js';
+import { config } from '../../config/index.js';
 
 /**
  * Create an order from the user's active cart with stock checks.
@@ -45,14 +46,15 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
     }
     // Check stock and build items snapshot (variant-aware) using cart pricing
     const items = [];
+    const reservationItems = [];
     for (const it of cart.items) {
       const q = Product.findById(it.product);
       const product = sess ? await q.session(sess) : await q;
       if (!product || !product.isActive) throw errors.badRequest(ERROR_CODES.PRODUCT_UNAVAILABLE, { name: it.name });
       const available = await getAvailableStock(product._id, it.variant || null);
       if (available < it.quantity) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK, { name: it.name });
-      await adjustStock({ productId: product._id, variantId: it.variant || null, qtyChange: -Math.abs(it.quantity), reason: 'order', note: `Order`, byUserId: userId, session: sess || null });
       items.push({ product: product._id, variant: it.variant || undefined, name: it.name || product.name, price: it.price, currency: cart.currency, quantity: it.quantity });
+      reservationItems.push({ productId: product._id, variantId: it.variant || null, quantity: it.quantity });
     }
 
     const subtotal = items.reduce((s, it) => s + it.price * it.quantity, 0);
@@ -96,10 +98,14 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
     await created.save({ session: sess || undefined });
     await addTimeline(created._id, { type: 'invoice_generated', message: t('timeline.invoice_generated', { invoiceNumber }) });
     // Record reservations for audit/ops (reserved until paid or released on cancel)
-    try {
-      const resDocs = items.map((it) => ({ order: created._id, user: userId, product: it.product, variant: it.variant || null, quantity: it.quantity, status: 'reserved', reason: 'order' }));
-      await Reservation.insertMany(resDocs, { session: sess || undefined });
-    } catch {}
+    await reserveOrderItems({
+      orderId: created._id,
+      userId,
+      items: reservationItems,
+      session: sess || undefined,
+      expiresInMinutes: config.RESERVATION_EXPIRES_MINUTES,
+      notes: 'order placement'
+    });
     return created;
   };
 

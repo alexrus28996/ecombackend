@@ -8,7 +8,7 @@ Adjustments
 - List: `GET /api/admin/inventory/adjustments`
 
 Reservations (audit trail)
-- Created on order placement; marked `consumed` on payment, `released` on auto‑cancel.
+- Created on order placement; transitions to `converted` when payment succeeds, `cancelled`/`expired` when released.
 
 Low stock
 - Admin report: `GET /api/admin/inventory/low`
