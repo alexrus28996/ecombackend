@@ -14,7 +14,6 @@ import { addTimeline } from '../../../modules/orders/timeline.service.js';
 import { PaymentTransaction } from '../../../modules/payments/payment-transaction.model.js';
 import { Refund } from '../../../modules/payments/refund.model.js';
 import { Shipment } from '../../../modules/orders/shipment.model.js';
-import { Product } from '../../../modules/catalog/product.model.js';
 
 export async function listUsers(req, res) {
   const { q } = req.query;

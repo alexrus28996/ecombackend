@@ -40,6 +40,7 @@ import {
   lowStockController,
   priceBulkController,
   categoryBulkController,
+  variantsMatrixController,
   productReferencesController,
   brandReferencesController
 } from '../controllers/admin.controller.js';
@@ -55,7 +56,7 @@ import {
   deleteCategory as deleteCategoryController
 } from '../controllers/categories.controller.js';
 import { categorySchema, reorderSchema } from '../validation/categories.validation.js';
-import { brandSchema as brandCreateSchema, idParam as brandIdParam } from '../validation/brands.validation.js';
+import { brandSchema as brandCreateSchema, brandUpdateSchema, idParam as brandIdParam } from '../validation/brands.validation.js';
 import { listBrands as listBrandsController, createBrand as createBrandController, getBrand as getBrandController, updateBrand as updateBrandController, deleteBrand as deleteBrandController } from '../controllers/brands.controller.js';
 
 export const router = Router();
@@ -131,6 +132,6 @@ router.post('/categories/:id/reorder', authRequired, requireRole(ROLES.ADMIN), v
 router.get('/brands', authRequired, requireRole(ROLES.ADMIN), listBrandsController);
 router.post('/brands', authRequired, requireRole(ROLES.ADMIN), validate(brandCreateSchema), createBrandController);
 router.get('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandIdParam), getBrandController);
-router.put('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandCreateSchema), updateBrandController);
+router.put('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandUpdateSchema), updateBrandController);
 router.delete('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandIdParam), deleteBrandController);
 router.get('/brands/:id/references', authRequired, requireRole(ROLES.ADMIN), validate(brandIdParam), brandReferencesController);

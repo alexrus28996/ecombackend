@@ -44,7 +44,7 @@ const productSchema = new mongoose.Schema(
     images: { type: [imageSchema], default: [] },
     attributes: { type: Map, of: String },
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
-    brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
+    brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', alias: 'brandId' },
     vendor: { type: String, trim: true },
     sku: { type: String, trim: true },
     barcode: { type: String, trim: true },

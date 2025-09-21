@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
-export const brandSchema = { body: z.object({ name: z.string().min(2), slug: z.string().optional(), description: z.string().optional(), isActive: z.coerce.boolean().optional() }) };
+const base = z.object({
+  name: z.string().min(2),
+  slug: z.string().min(2).optional(),
+  description: z.string().optional(),
+  logo: z.string().url().optional(),
+  isActive: z.coerce.boolean().optional()
+});
+
+export const brandSchema = { body: base };
+export const brandUpdateSchema = { params: z.object({ id: z.string() }), body: base.partial() };
 export const idParam = { params: z.object({ id: z.string() }) };
 

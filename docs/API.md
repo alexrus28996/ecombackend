@@ -30,8 +30,8 @@ This document summarizes the HTTP API exposed by the backend. All endpoints are 
 - PATCH `/api/auth/preferences`
 
 ## Products
-- GET `/api/products` — list, with `q`, `category`, `page`, `limit`.
-- GET `/api/products/{id}` — product detail. Note: `category` is populated with `{ _id, name, slug }`.
+- GET `/api/products` — list, with `q`, `category`, `page`, `limit`. Each product embeds `category` and `brand` (if assigned) as `{ _id, name, slug }`.
+- GET `/api/products/{id}` — product detail with populated `category` and `brand` references.
 - POST `/api/products` — admin; body per ProductInput; requires valid leaf `category`.
 - PUT `/api/products/{id}` — admin; leaf category check applies when changing category.
 - DELETE `/api/products/{id}` — admin.
@@ -49,7 +49,7 @@ ProductInput (summary):
   "images": [ { "url": "https://...", "alt": "string?" } ],
   "attributes": { "color": "Blue" },
   "category": "<categoryId>",
-  "brand": "string?",
+  "brandId": "<brandId?>",
   "vendor": "string?",
   "sku": "string?",
   "tags": ["tshirt"],
@@ -74,6 +74,13 @@ ProductInput (summary):
 - DELETE `/api/categories/{id}` — admin; blocked if products exist or has children
 
 Admin aliases (same semantics under `/api/admin/categories*`).
+
+## Brands
+- GET `/api/brands` — list/search brands; supports `q`, `page`, `limit`.
+- GET `/api/brands/{id}` — fetch single brand.
+- POST `/api/brands` — admin; body `{ name, slug?, logo?, description?, isActive? }`.
+- PUT `/api/brands/{id}` — admin; update payload matches create (all fields optional).
+- DELETE `/api/brands/{id}` — admin; blocked when products reference the brand.
 
 ## Cart (requires login)
 - GET `/api/cart`
@@ -127,6 +134,7 @@ Example order response:
 - Products: POST `/api/admin/products/import`, GET `/api/admin/products/export?format=json|csv`, bulk ops (`/price-bulk`, `/category-bulk`)
 - Reports: `/api/admin/reports/sales`, `/api/admin/reports/top-products`, `/api/admin/reports/top-customers`
 - Categories admin aliases: `/api/admin/categories*` (same as public CRUD, admin‑only)
+- Brands admin: `/api/admin/brands` (list/create), `/api/admin/brands/{id}` (get/update/delete), `/api/admin/brands/{id}/references`
 
 ## Payments (Stripe)
 - POST `/api/payments/stripe/intent` — create PaymentIntent for an order

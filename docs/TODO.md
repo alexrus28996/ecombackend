@@ -69,7 +69,7 @@ Users & Addresses
 - [x] P0 Orders: snapshot billingAddress in addition to shippingAddress
 
 Catalog
-- [ ] P1 Brand model + CRUD; product.brand reference; index brand
+- [x] P1 Brand model + CRUD; product.brand reference; index brand
 - [ ] P1 Attribute/Option config per product; variant matrix generation
 - [x] P1 Enforce category leaf assignment (disallow non-leaf if using deep trees)
 - [x] P1 Product text index on name/description; slug uniqueness guard
@@ -101,7 +101,7 @@ APIs & Docs
 - [x] P0 Update OpenAPI + Postman for: addresses, transactions, refunds, shipments
 - [x] P0 Update OpenAPI + Postman for: brand, attributes
 - [x] P0 Expose admin endpoints for new models with RBAC
-- [ ] P1 Add populate options for product.brand in GET endpoints (category populated)
+- [x] P1 Add populate options for product.brand in GET endpoints (category populated)
 
 
 - [x] P1 Products indexes added: category, slug(unique), text(name,description)
