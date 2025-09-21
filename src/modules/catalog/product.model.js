@@ -16,21 +16,6 @@ const dimensionsSchema = new mongoose.Schema({
   unit: { type: String, default: 'cm' }
 }, { _id: false });
 
-// Product schema with slug, attributes map, and stock
-const variantSchema = new mongoose.Schema({
-  sku: { type: String, trim: true },
-  attributes: { type: Map, of: String },
-  price: { type: Number, min: 0 },
-  priceDelta: { type: Number },
-  compareAtPrice: { type: Number, min: 0 },
-  costPrice: { type: Number, min: 0 },
-  barcode: { type: String, trim: true },
-  weight: { type: Number },
-  weightUnit: { type: String, default: 'kg' },
-  dimensions: { type: dimensionsSchema },
-  isActive: { type: Boolean, default: true }
-}, { _id: true });
-
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -53,7 +38,6 @@ const productSchema = new mongoose.Schema(
     tags: { type: [String], default: [] },
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
-    variants: { type: [variantSchema], default: [] },
     requiresShipping: { type: Boolean, default: true },
     weight: { type: Number },
     weightUnit: { type: String, default: 'kg' },

@@ -2,6 +2,8 @@ import { Product } from './product.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { config } from '../../config/index.js';
 import { paginate } from '../../utils/pagination.js';
+import { listAttributesWithOptions } from './attribute.service.js';
+import { listVariants, attributeMapFromVariant } from './variant.service.js';
 
 /**
  * Return a paginated list of products with basic text search.
@@ -23,8 +25,19 @@ export async function listProducts({ q, category, limit = config.API_DEFAULT_PAG
  * Get a single product by id or throw NOT_FOUND.
  */
 export async function getProduct(id) {
-  const product = await Product.findById(id).populate('category', 'name slug').populate('brand', 'name slug');
-  if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
+  const productDoc = await Product.findById(id).populate('category', 'name slug').populate('brand', 'name slug');
+  if (!productDoc) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
+  const [attributeConfig, variantDocs] = await Promise.all([
+    listAttributesWithOptions(id),
+    listVariants(id)
+  ]);
+  const product = productDoc.toObject({ virtuals: true });
+  const variants = variantDocs.map((variant) => ({
+    ...variant,
+    attributeMap: attributeMapFromVariant(variant)
+  }));
+  product.attributeConfig = attributeConfig;
+  product.variants = variants;
   return product;
 }
 

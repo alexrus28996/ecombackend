@@ -2,6 +2,7 @@ import { InventoryAdjustment } from './adjustment.model.js';
 import { Inventory } from './inventory.model.js';
 import { Product } from '../catalog/product.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
+import { ProductVariant } from '../catalog/product-variant.model.js';
 
 /**
  * Adjust stock for a product or specific variant.
@@ -18,8 +19,8 @@ export async function adjustStock({ productId, variantId, qtyChange, reason = 'm
   if (!inv) {
     // Treat Inventory as the single source of truth; initialize new records with qty: 0
     if (variantId) {
-      const variant = product.variants?.find(v => v._id.toString() === String(variantId));
-      if (!variant) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
+      const variant = await ProductVariant.findOne({ _id: variantId, product: productId }).lean();
+      if (!variant) throw errors.notFound(ERROR_CODES.VARIANT_NOT_FOUND);
       inv = await Inventory.create([
         { product: productId, variant: variantId, sku: variant.sku, qty: 0, location }
       ], { session });
