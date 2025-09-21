@@ -2,8 +2,13 @@
 
 This folder is the single place for frontend and QA engineers to understand and integrate with the API.
 
-Read in this order for a smooth integration:
+Read in this order for a smooth integration depending on your role:
 
+**Everyone (start here)**
+- Plain-language tour for stakeholders → `docs/NonTechnicalOverview.md`
+- Snapshot of top-priority endpoints (payloads + responses) → `docs/API.md`
+
+**Frontend & mobile developers**
 1) Auth basics → `docs/guides/Auth.md`
 2) Products + Categories + Brands → `docs/guides/Products.md`, `docs/guides/Brands.md`
 3) Cart → `docs/guides/Cart.md`

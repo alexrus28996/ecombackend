@@ -108,14 +108,16 @@ src/
   - `GET /api/admin/orders/:id`
   - `PATCH /api/admin/orders/:id`
 
-## API Docs (Swagger)
+## Documentation & API Contracts
 - Swagger UI: `GET http://localhost:4001/docs`
 - Raw spec: `GET http://localhost:4001/docs/openapi.json`
 - Configure path with `DOCS_PATH` in `.env` (defaults to `/docs`).
- - Human-readable reference: `docs/API.md`
- - Postman collection: `docs/postman_collection.json`
- - Guides: `docs/guides/Auth.md`, `docs/guides/Products.md`, `docs/guides/Orders.md`
- - Roadmap / TODOs: `docs/TODO.md`
+- Prioritised human reference (`what to call, what to send, what returns`): `docs/API.md`
+- Frontend-focused tables with every request/response: `docs/frontend_api_reference.md`
+- Non-technical walkthrough (customer/admin flows without jargon): `docs/NonTechnicalOverview.md`
+- Postman collection ready for import: `docs/postman_collection.json`
+- Deep-dive guides: `docs/guides/Auth.md`, `docs/guides/Products.md`, `docs/guides/Orders.md`
+- Roadmap / TODOs: `docs/TODO.md`
 
 ## Production (DevOps)
 - PM2 + Nginx examples: see `docs/DEVOPS.md`
