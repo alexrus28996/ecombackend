@@ -5,7 +5,7 @@ import { ProductOption } from './product-option.model.js';
 import { ProductVariant } from './product-variant.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 
-const SKU_PATTERN = /^[A-Z0-9][A-Z0-9-_\.]*$/i;
+const SKU_PATTERN = /^[A-Z0-9][A-Z0-9-_.]*$/i;
 
 function normalizeSelections(selections = []) {
   return selections

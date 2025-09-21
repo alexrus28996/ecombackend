@@ -1,22 +1,27 @@
-import mongoose from 'mongoose';
+import { jest } from '@jest/globals';
 import { createProduct, listProducts, getProduct, updateProduct, deleteProduct } from '../src/modules/catalog/product.service.js';
 import { Category } from '../src/modules/catalog/category.model.js';
+import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
 describe('Products service CRUD', () => {
   let cat;
   let prod;
+  let shouldSkip = false;
+  jest.setTimeout(10000);
 
   beforeAll(async () => {
-    await mongoose.connect(process.env.MONGO_URI, { dbName: process.env.DB_NAME });
-    await mongoose.connection.db.dropDatabase();
+    const { skip } = await connectOrSkip();
+    shouldSkip = skip;
+    if (shouldSkip) return;
     cat = await Category.create({ name: 'Accessories', slug: 'accessories' });
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
+    await disconnectIfNeeded(shouldSkip);
   });
 
   test('create, list, get, update, delete product', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
     prod = await createProduct({ name: 'Belt', description: 'Leather belt', price: 15.5, currency: 'USD', category: cat._id, isActive: true });
     expect(prod.name).toBe('Belt');
     expect(prod.slug).toBeTruthy();

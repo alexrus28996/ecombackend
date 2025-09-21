@@ -2,11 +2,10 @@ import { User } from '../../../modules/users/user.model.js';
 import { Product } from '../../../modules/catalog/product.model.js';
 import { t } from '../../../i18n/index.js';
 import { Order } from '../../../modules/orders/order.model.js';
-import { ROLES, ORDER_STATUS, PAYMENT_STATUS } from '../../../config/constants.js';
+import { ROLES, ORDER_STATUS } from '../../../config/constants.js';
 import { config } from '../../../config/index.js';
-import { Coupon } from '../../../modules/coupons/coupon.model.js';
 import { createCoupon, listCoupons, getCoupon, updateCoupon, deleteCoupon } from '../../../modules/coupons/coupon.service.js';
-import { adjustStock, listAdjustments, listInventory } from '../../../modules/inventory/inventory.service.js';
+import { adjustStockLevels, listAdjustments as listStockAdjustments, listInventoryItems } from '../../../modules/inventory/services/stock.service.js';
 import { releaseOrderReservations } from '../../../modules/inventory/reservation.service.js';
 import slugify from 'slugify';
 import { ReturnRequest } from '../../../modules/orders/return.model.js';
@@ -172,20 +171,28 @@ export async function deleteCouponController(req, res) {
 }
 
 export async function listAdjustmentsController(req, res) {
-  const { product, variant, reason, page, limit } = req.query;
-  const result = await listAdjustments({ product, variant, reason, page, limit });
+  const { product, variant, reason, direction, locationId, location, page, limit } = req.query;
+  const loc = locationId || location;
+  const result = await listStockAdjustments({ productId: product, variantId: variant, reason, direction, locationId: loc, page, limit });
   res.json(result);
 }
 
 export async function createAdjustmentController(req, res) {
-  const { productId, variantId, qtyChange, reason, note, location } = req.validated.body;
-  const { adjustment, product, inventory } = await adjustStock({ productId, variantId, qtyChange, reason, note, byUserId: req.user.sub, location: typeof location === 'string' ? location : null });
-  res.status(201).json({ adjustment, product, inventory });
+  const { productId, variantId, locationId, qtyChange, reservedChange, reason, refId } = req.validated.body;
+  const [updated] = await adjustStockLevels({
+    adjustments: [{ productId, variantId: variantId || null, locationId, qtyChange, reservedChange }],
+    reason,
+    actor: req.user.sub,
+    refType: 'ADJUSTMENT',
+    refId
+  });
+  res.status(201).json({ inventory: updated });
 }
 
 export async function listInventoryController(req, res) {
-  const { product, variant, location, page, limit } = req.query;
-  const result = await listInventory({ product, variant, location, page, limit });
+  const { product, variant, locationId, location, page, limit } = req.query;
+  const loc = locationId || location;
+  const result = await listInventoryItems({ productId: product, variantId: variant, locationId: loc, page, limit });
   res.json(result);
 }
 
@@ -209,6 +216,67 @@ export async function approveReturnController(req, res) {
   if (rr.status !== 'requested') return res.status(400).json({ error: { message: t('errors.return_processed') } });
   const order = await Order.findById(rr.order);
   if (!order) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
+
+  const payload = req.validated?.body || {};
+  const partialItems = Array.isArray(payload.items) ? payload.items : null;
+  const defaultLocationId = payload.locationId;
+  const buildAdjustments = () => {
+    const adjustmentsMap = new Map();
+    if (partialItems && partialItems.length) {
+      const orderItems = new Map(order.items.map((it) => {
+        const key = `${String(it.product)}|${String(it.variant || '')}`;
+        return [key, it];
+      }));
+      for (const item of partialItems) {
+        const key = `${String(item.product)}|${String(item.variant || '')}`;
+        const orderItem = orderItems.get(key);
+        if (!orderItem) {
+          throw Object.assign(new Error('Return item does not match order contents'), { statusCode: 400 });
+        }
+        const locationId = item.locationId || defaultLocationId;
+        if (!locationId) {
+          throw Object.assign(new Error('locationId is required to restock returned items'), { statusCode: 400 });
+        }
+        const qty = Math.max(0, Number(item.quantity) || 0);
+        if (!qty) continue;
+        const adjKey = `${String(orderItem.product)}|${String(orderItem.variant || '')}|${String(locationId)}`;
+        const existing = adjustmentsMap.get(adjKey) || {
+          productId: orderItem.product,
+          variantId: orderItem.variant || null,
+          locationId,
+          qtyChange: 0
+        };
+        existing.qtyChange += qty;
+        adjustmentsMap.set(adjKey, existing);
+      }
+    } else if (order.items.length) {
+      if (!defaultLocationId) {
+        throw Object.assign(new Error('locationId is required to restock returned items'), { statusCode: 400 });
+      }
+      for (const item of order.items) {
+        const qty = Math.max(0, Number(item.quantity) || 0);
+        if (!qty) continue;
+        const adjKey = `${String(item.product)}|${String(item.variant || '')}|${String(defaultLocationId)}`;
+        const existing = adjustmentsMap.get(adjKey) || {
+          productId: item.product,
+          variantId: item.variant || null,
+          locationId: defaultLocationId,
+          qtyChange: 0
+        };
+        existing.qtyChange += qty;
+        adjustmentsMap.set(adjKey, existing);
+      }
+    }
+    return Array.from(adjustmentsMap.values());
+  };
+
+  let plannedAdjustments;
+  try {
+    plannedAdjustments = buildAdjustments();
+  } catch (err) {
+    const status = err?.statusCode || 400;
+    return res.status(status).json({ error: { message: err.message || 'Invalid return items' } });
+  }
 
   // 1) Attempt refund with provider first (to avoid refund success but DB failure later)
   let refundDoc;
@@ -236,7 +304,9 @@ export async function approveReturnController(req, res) {
         const tx = await PaymentTransaction.findOne({ order: order._id, providerRef: order.transactionId });
         const refundAmount = typeof req.validated?.body?.amount === 'number' ? req.validated.body.amount : (amountCents ? amountCents / 100 : order.total);
         refundDoc = await Refund.create({ order: order._id, transaction: tx?._id, provider: 'stripe', status: 'succeeded', amount: refundAmount, currency: order.currency, providerRef: r.id, raw: r });
-      } catch {}
+      } catch (err) {
+        req.log?.error({ err, orderId: String(order._id) }, 'failed to record refund document for stripe return');
+      }
     } catch (e) {
       return res.status(502).json({ error: { message: 'Refund failed', details: e.message } });
     }
@@ -247,19 +317,18 @@ export async function approveReturnController(req, res) {
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
-      // Restock all items
-      const partialItems = req.validated?.body?.items;
-      if (Array.isArray(partialItems) && partialItems.length) {
-        const reqMap = new Map(partialItems.map((it) => [String(it.product) + '|' + String(it.variant || ''), Number(it.quantity)]));
-        for (const it of order.items) {
-          const key = String(it.product) + '|' + String(it.variant || '');
-          const qty = reqMap.get(key);
-          if (qty) await adjustStock({ productId: it.product, variantId: it.variant || null, qtyChange: Math.abs(qty), reason: 'refund', note: `Return ${rr._id}`, byUserId: req.user.sub, session });
-        }
-      } else {
-        for (const it of order.items) {
-          await adjustStock({ productId: it.product, variantId: it.variant || null, qtyChange: Math.abs(it.quantity), reason: 'refund', note: `Return ${rr._id}`, byUserId: req.user.sub, session });
-        }
+      if (plannedAdjustments.length) {
+        await adjustStockLevels({
+          adjustments: plannedAdjustments.map((adj) => ({
+            ...adj,
+            qtyChange: Math.abs(adj.qtyChange)
+          })),
+          reason: 'RETURN',
+          actor: req.user.sub,
+          refType: 'RETURN',
+          refId: String(rr._id),
+          session
+        });
       }
       const isFull = !req.validated?.body?.items && typeof req.validated?.body?.amount !== 'number';
       if (isFull) {
@@ -277,11 +346,19 @@ export async function approveReturnController(req, res) {
     await session.endSession();
   }
 
-  try { await addTimeline(order._id, { type: 'return_approved', message: 'Return approved and refunded', userId: req.user.sub }); } catch {}
+  try {
+    await addTimeline(order._id, { type: 'return_approved', message: 'Return approved and refunded', userId: req.user.sub });
+  } catch (err) {
+    req.log?.warn({ err, orderId: String(order._id) }, 'failed to append return approved timeline entry');
+  }
   if (refundDoc) {
     rr.refund = refundDoc._id;
     await rr.save();
-    try { await PaymentTransaction.updateMany({ order: order._id }, { $set: { status: 'refunded' } }); } catch {}
+    try {
+      await PaymentTransaction.updateMany({ order: order._id }, { $set: { status: 'refunded' } });
+    } catch (err) {
+      req.log?.error({ err, orderId: String(order._id) }, 'failed to mark payment transactions as refunded');
+    }
   }
   res.json({ return: rr, order, refund: refundDoc });
 }
@@ -372,7 +449,11 @@ export async function createShipmentController(req, res) {
     items: Array.isArray(items) && items.length > 0 ? items : order.items.map((it) => ({ product: it.product, variant: it.variant, name: it.name, quantity: it.quantity }))
   };
   const shp = await Shipment.create(payload);
-  try { await addTimeline(order._id, { type: 'shipment_created', message: t('admin.shipment_created', { shipmentId: shp._id }) }); } catch {}
+  try {
+    await addTimeline(order._id, { type: 'shipment_created', message: t('admin.shipment_created', { shipmentId: shp._id }) });
+  } catch (err) {
+    req.log?.warn({ err, orderId: String(order._id) }, 'failed to append shipment created timeline entry');
+  }
   res.status(201).json({ shipment: shp });
 }
 
@@ -416,12 +497,12 @@ export async function variantsMatrixController(req, res) {
 // Reference checks
 export async function productReferencesController(req, res) {
   const productId = req.validated.params.id;
-  const [{ Inventory }] = await Promise.all([import('../../../modules/inventory/inventory.model.js')]);
+  const [{ StockItem }] = await Promise.all([import('../../../modules/inventory/models/stock-item.model.js')]);
   const { Review } = await import('../../../modules/reviews/review.model.js');
   const { Order } = await import('../../../modules/orders/order.model.js');
   const { Shipment } = await import('../../../modules/orders/shipment.model.js');
   const [inventory, reviews, orders, shipments] = await Promise.all([
-    Inventory.countDocuments({ product: productId }),
+    StockItem.countDocuments({ productId }),
     Review.countDocuments({ product: productId }),
     Order.countDocuments({ 'items.product': productId }),
     Shipment.countDocuments({ 'items.product': productId })
@@ -552,10 +633,11 @@ export async function lowStockController(req, res) {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.max(1, Math.min(Number(req.query.limit) || 20, 200));
   const skip = (page - 1) * limit;
-  const { Inventory } = await import('../../../modules/inventory/inventory.model.js');
+  const { StockItem } = await import('../../../modules/inventory/models/stock-item.model.js');
+  const filter = { $expr: { $lte: [{ $subtract: ['$onHand', '$reserved'] }, threshold] } };
   const [items, total] = await Promise.all([
-    Inventory.find({ qty: { $lte: threshold } }).sort({ qty: 1 }).skip(skip).limit(limit),
-    Inventory.countDocuments({ qty: { $lte: threshold } })
+    StockItem.find(filter).sort({ onHand: 1 }).skip(skip).limit(limit),
+    StockItem.countDocuments(filter)
   ]);
   res.json({ items, total, page, pages: Math.ceil(total / limit || 1), threshold });
 }

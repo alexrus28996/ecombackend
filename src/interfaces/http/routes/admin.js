@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { authRequired, requireRole } from '../../../middleware/auth.js';
 import { validate } from '../../../middleware/validate.js';
 import { ROLES } from '../../../config/constants.js';
-import { config } from '../../../config/index.js';
 import {
   listUsers as listUsersController,
   getUserById as getUserByIdController,

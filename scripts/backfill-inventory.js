@@ -2,22 +2,27 @@
 import mongoose from 'mongoose';
 import { config } from '../src/config/index.js';
 import { Product } from '../src/modules/catalog/product.model.js';
-import { Inventory } from '../src/modules/inventory/inventory.model.js';
+import { Location } from '../src/modules/inventory/models/location.model.js';
+import { StockItem } from '../src/modules/inventory/models/stock-item.model.js';
 
 async function main() {
   await mongoose.connect(config.MONGO_URI, { dbName: config.DB_NAME || undefined });
   const products = await Product.find({}).lean();
+  let defaultLocation = await Location.findOne({ code: 'DEFAULT' });
+  if (!defaultLocation) {
+    defaultLocation = await Location.create({ code: 'DEFAULT', name: 'Primary Warehouse', type: 'WAREHOUSE', priority: 5, active: true });
+  }
   let created = 0;
   for (const p of products) {
-    const baseInv = await Inventory.findOne({ product: p._id, variant: null, location: null });
+    const baseInv = await StockItem.findOne({ productId: p._id, variantId: null, locationId: defaultLocation._id });
     if (!baseInv) {
-      await Inventory.create({ product: p._id, variant: null, location: null, qty: Number(p.stock || 0), sku: p.sku || undefined });
+      await StockItem.create({ productId: p._id, variantId: null, locationId: defaultLocation._id, onHand: Number(p.stock || 0), reserved: 0 });
       created++;
     }
     for (const v of (p.variants || [])) {
-      const vinv = await Inventory.findOne({ product: p._id, variant: v._id, location: null });
+      const vinv = await StockItem.findOne({ productId: p._id, variantId: v._id, locationId: defaultLocation._id });
       if (!vinv) {
-        await Inventory.create({ product: p._id, variant: v._id, location: null, qty: Number(v.stock || 0), sku: v.sku || undefined });
+        await StockItem.create({ productId: p._id, variantId: v._id, locationId: defaultLocation._id, onHand: Number(v.stock || 0), reserved: 0 });
         created++;
       }
     }

@@ -16,14 +16,26 @@ export const updateOrderSchema = {
 export const returnApproveSchema = {
   params: z.object({ id: z.string() }),
   body: z.object({
-    items: z.array(z.object({ product: z.string(), variant: z.string().optional(), quantity: z.coerce.number().int().min(1) })).optional(),
-    amount: z.coerce.number().min(0).optional()
+    items: z.array(z.object({ product: z.string(), variant: z.string().optional(), quantity: z.coerce.number().int().min(1), locationId: z.string().optional() })).optional(),
+    amount: z.coerce.number().min(0).optional(),
+    locationId: z.string().optional()
   }).optional()
 };
 
 export const couponSchema = { body: z.object({ code: z.string().min(2), description: z.string().optional(), type: z.enum(['percent', 'fixed']), value: z.coerce.number().nonnegative(), minSubtotal: z.coerce.number().nonnegative().optional(), expiresAt: z.string().datetime().optional(), isActive: z.coerce.boolean().optional() }) };
 
-export const adjustSchema = { body: z.object({ productId: z.string(), variantId: z.string().optional(), location: z.string().nullable().optional(), qtyChange: z.coerce.number().int(), reason: z.enum(['manual','order','refund','restock','correction']).default('manual'), note: z.string().optional() }) };
+export const adjustSchema = {
+  body: z.object({
+    productId: z.string(),
+    variantId: z.string().optional().nullable(),
+    locationId: z.string(),
+    qtyChange: z.coerce.number().int(),
+    reservedChange: z.coerce.number().int().optional(),
+    reason: z.string().min(2).default('manual'),
+    note: z.string().optional(),
+    refId: z.string().optional()
+  })
+};
 
 export const importSchema = { body: z.object({ items: z.array(z.object({
   name: z.string().min(2),

@@ -56,13 +56,92 @@ export function buildOpenApiSpec() {
           type: 'object',
           properties: {
             _id: { type: 'string' },
-            product: { type: 'string' },
-            variant: { type: 'string' },
-            qtyChange: { type: 'integer' },
+            productId: { type: 'string' },
+            variantId: { type: 'string', nullable: true },
+            locationId: { type: 'string' },
+            qty: { type: 'integer' },
+            direction: { type: 'string', enum: ['IN','OUT','RESERVE','RELEASE','ADJUST','TRANSFER_IN','TRANSFER_OUT'] },
             reason: { type: 'string' },
-            note: { type: 'string' },
-            previousStock: { type: 'integer' },
-            newStock: { type: 'integer' }
+            refType: { type: 'string' },
+            refId: { type: 'string' },
+            occurredAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        Location: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            code: { type: 'string' },
+            name: { type: 'string' },
+            type: { type: 'string', enum: ['WAREHOUSE','STORE','DROPSHIP','BUFFER'] },
+            geo: {
+              type: 'object',
+              properties: {
+                lat: { type: 'number' },
+                lng: { type: 'number' },
+                pincode: { type: 'string' },
+                country: { type: 'string' },
+                region: { type: 'string' }
+              }
+            },
+            priority: { type: 'integer' },
+            active: { type: 'boolean' }
+          }
+        },
+        StockItem: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            productId: { type: 'string' },
+            variantId: { type: 'string', nullable: true },
+            locationId: { type: 'string' },
+            onHand: { type: 'integer' },
+            reserved: { type: 'integer' },
+            incoming: { type: 'integer' },
+            safetyStock: { type: 'integer' },
+            reorderPoint: { type: 'integer' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        TransferOrder: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            fromLocationId: { type: 'string' },
+            toLocationId: { type: 'string' },
+            status: { type: 'string', enum: ['DRAFT','REQUESTED','IN_TRANSIT','RECEIVED','CANCELLED'] },
+            lines: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  productId: { type: 'string' },
+                  variantId: { type: 'string', nullable: true },
+                  qty: { type: 'integer' }
+                }
+              }
+            },
+            createdAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        PickingPlanLeg: {
+          type: 'object',
+          properties: {
+            location: { $ref: '#/components/schemas/Location' },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  productId: { type: 'string' },
+                  variantId: { type: 'string', nullable: true },
+                  qty: { type: 'integer' }
+                }
+              }
+            },
+            distanceKm: { type: 'number' },
+            score: { type: 'number' },
+            sla: { type: 'object', properties: { days: { type: 'integer' }, category: { type: 'string' } } }
           }
         },
         Review: {
@@ -878,6 +957,8 @@ export function buildOpenApiSpec() {
             { name: 'product', in: 'query', schema: { type: 'string' } },
             { name: 'variant', in: 'query', schema: { type: 'string' } },
             { name: 'reason', in: 'query', schema: { type: 'string' } },
+            { name: 'direction', in: 'query', schema: { type: 'string' } },
+            { name: 'locationId', in: 'query', schema: { type: 'string' } },
             { name: 'page', in: 'query', schema: { type: 'integer' } },
             { name: 'limit', in: 'query', schema: { type: 'integer' } }
           ],
@@ -886,7 +967,26 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Create inventory adjustment (admin)',
           security: [{ bearerAuth: [] }],
-          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { productId: { type: 'string' }, variantId: { type: 'string' }, qtyChange: { type: 'integer' }, reason: { type: 'string' }, note: { type: 'string' } }, required: ['productId','qtyChange'] } } } },
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    productId: { type: 'string' },
+                    variantId: { type: 'string' },
+                    locationId: { type: 'string' },
+                    qtyChange: { type: 'integer' },
+                    reservedChange: { type: 'integer' },
+                    reason: { type: 'string' },
+                    refId: { type: 'string' }
+                  },
+                  required: ['productId','locationId','qtyChange']
+                }
+              }
+            }
+          },
           responses: { '201': { description: 'Created' } }
         }
       },
@@ -897,11 +997,127 @@ export function buildOpenApiSpec() {
           parameters: [
             { name: 'product', in: 'query', schema: { type: 'string' } },
             { name: 'variant', in: 'query', schema: { type: 'string' } },
-            { name: 'location', in: 'query', schema: { type: 'string' } },
+            { name: 'locationId', in: 'query', schema: { type: 'string' } },
             { name: 'page', in: 'query', schema: { type: 'integer' } },
             { name: 'limit', in: 'query', schema: { type: 'integer' } }
           ],
           responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/inventory/locations`]: {
+        get: {
+          summary: 'List inventory locations',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'type', in: 'query', schema: { type: 'string' } },
+            { name: 'active', in: 'query', schema: { type: 'boolean' } },
+            { name: 'region', in: 'query', schema: { type: 'string' } },
+            { name: 'country', in: 'query', schema: { type: 'string' } },
+            { name: 'page', in: 'query', schema: { type: 'integer' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer' } }
+          ],
+          responses: { '200': { description: 'OK', content: { 'application/json': { schema: { type: 'object', properties: { items: { type: 'array', items: { $ref: '#/components/schemas/Location' } }, total: { type: 'integer' } } } } } } }
+        },
+        post: {
+          summary: 'Create location',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Location' } } } },
+          responses: { '201': { description: 'Created' } }
+        }
+      },
+      [`${api}/inventory/locations/{id}`]: {
+        get: {
+          summary: 'Get location',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK', content: { 'application/json': { schema: { $ref: '#/components/schemas/Location' } } } }, '404': { description: 'Not Found' } }
+        },
+        patch: {
+          summary: 'Update location',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } },
+          responses: { '200': { description: 'OK' } }
+        },
+        delete: {
+          summary: 'Soft delete location',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/inventory/stock`]: {
+        get: {
+          summary: 'Query stock by location',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'productId', in: 'query', schema: { type: 'string' } },
+            { name: 'variantId', in: 'query', schema: { type: 'string' } },
+            { name: 'locationId', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true },
+            { name: 'region', in: 'query', schema: { type: 'string' } },
+            { name: 'country', in: 'query', schema: { type: 'string' } },
+            { name: 'radius', in: 'query', schema: { type: 'number' } }
+          ],
+          responses: { '200': { description: 'OK', content: { 'application/json': { schema: { type: 'object', properties: { items: { type: 'array', items: { $ref: '#/components/schemas/StockItem' } } } } } } } }
+        }
+      },
+      [`${api}/inventory/stock/adjust`]: {
+        post: {
+          summary: 'Adjust stock levels',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { reason: { type: 'string' }, adjustments: { type: 'array', items: { type: 'object', properties: { productId: { type: 'string' }, variantId: { type: 'string' }, locationId: { type: 'string' }, qtyChange: { type: 'integer' }, reservedChange: { type: 'integer' } }, required: ['productId','locationId'] } } }, required: ['reason','adjustments'] } } } },
+          responses: { '202': { description: 'Accepted' } }
+        }
+      },
+      [`${api}/inventory/stock/reconcile`]: {
+        post: {
+          summary: 'Reconcile physical count',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { productId: { type: 'string' }, variantId: { type: 'string' }, locationId: { type: 'string' }, countedOnHand: { type: 'integer' }, countedReserved: { type: 'integer' } }, required: ['productId','locationId','countedOnHand'] } } } },
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/inventory/stock/transfer-orders`]: {
+        get: {
+          summary: 'List transfer orders',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'status', in: 'query', schema: { type: 'string' } },
+            { name: 'fromLocationId', in: 'query', schema: { type: 'string' } },
+            { name: 'toLocationId', in: 'query', schema: { type: 'string' } }
+          ],
+          responses: { '200': { description: 'OK', content: { 'application/json': { schema: { type: 'object', properties: { items: { type: 'array', items: { $ref: '#/components/schemas/TransferOrder' } }, total: { type: 'integer' } } } } } } }
+        },
+        post: {
+          summary: 'Create transfer order',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TransferOrder' } } } },
+          responses: { '201': { description: 'Created' } }
+        }
+      },
+      [`${api}/inventory/stock/transfer-orders/{id}`]: {
+        patch: {
+          summary: 'Transition transfer order status',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string' } }, required: ['status'] } } } },
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/inventory/picking/quote`]: {
+        post: {
+          summary: 'Quote picking plan',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { shipTo: { type: 'object', properties: { lat: { type: 'number' }, lng: { type: 'number' }, pincode: { type: 'string' }, country: { type: 'string' } } }, items: { type: 'array', items: { type: 'object', properties: { productId: { type: 'string' }, variantId: { type: 'string' }, qty: { type: 'integer' } }, required: ['productId','qty'] } }, splitAllowed: { type: 'boolean' } }, required: ['items'] } } } },
+          responses: { '200': { description: 'OK', content: { 'application/json': { schema: { type: 'object', properties: { plan: { type: 'array', items: { $ref: '#/components/schemas/PickingPlanLeg' } }, fillRate: { type: 'number' }, split: { type: 'boolean' } } } } } } }
+        }
+      },
+      [`${api}/inventory/picking/allocate`]: {
+        post: {
+          summary: 'Allocate picking plan',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { orderId: { type: 'string' }, plan: { type: 'array', items: { $ref: '#/components/schemas/PickingPlanLeg' } } }, required: ['plan'] } } } },
+          responses: { '201': { description: 'Created' } }
         }
       },
       [`${api}/uploads`]: {

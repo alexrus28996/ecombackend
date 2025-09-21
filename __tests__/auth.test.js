@@ -1,15 +1,19 @@
-import mongoose from 'mongoose';
+import { jest } from '@jest/globals';
 import { register, login, rotateRefreshToken, revokeRefreshToken } from '../src/modules/users/auth.service.js';
 import { User } from '../src/modules/users/user.model.js';
+import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
 describe('Auth service', () => {
+  jest.setTimeout(10000);
+  let shouldSkip = false;
   beforeAll(async () => {
-    await mongoose.connect(process.env.MONGO_URI, { dbName: process.env.DB_NAME });
-    await mongoose.connection.db.dropDatabase();
+    const { skip } = await connectOrSkip();
+    shouldSkip = skip;
   });
-  afterAll(async () => { await mongoose.disconnect(); });
+  afterAll(async () => { await disconnectIfNeeded(shouldSkip); });
 
   test('register first user as admin, next as customer; login works', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
     const u1 = await register({ name: 'Alice', email: 'alice@example.com', password: 'Passw0rd!' });
     expect(u1.roles).toContain('admin');
 

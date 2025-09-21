@@ -1,5 +1,8 @@
 import { config } from '../config/index.js';
 import { sendEmail } from './email.js';
+import { getLogger } from '../logger.js';
+
+const logger = getLogger().child({ module: 'mailer' });
 
 let enqueueMailFn = null;
 async function ensureQueue() {
@@ -17,7 +20,9 @@ export async function deliverEmail(payload) {
       await enq(payload);
       return { queued: true };
     }
-  } catch {}
+  } catch (err) {
+    logger.warn({ err }, 'failed to enqueue email, falling back to direct send');
+  }
   await sendEmail(payload);
   return { queued: false };
 }

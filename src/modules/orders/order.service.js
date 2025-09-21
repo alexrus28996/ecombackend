@@ -4,7 +4,7 @@ import { Product } from '../catalog/product.model.js';
 import { Order } from './order.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { CART_STATUS } from '../../config/constants.js';
-import { getAvailableStock } from '../inventory/inventory.service.js';
+import { getAvailableStock } from '../inventory/services/stock.service.js';
 import { generateInvoicePdf } from './invoice.service.js';
 import { deliverEmail } from '../../utils/mailer.js';
 import { reserveOrderItems } from '../inventory/reservation.service.js';
@@ -13,6 +13,9 @@ import { addTimeline } from './timeline.service.js';
 import { t } from '../../i18n/index.js';
 import { Address } from '../users/address.model.js';
 import { config } from '../../config/index.js';
+import { getLogger } from '../../logger.js';
+
+const logger = getLogger().child({ module: 'orders-service' });
 
 /**
  * Create an order from the user's active cart with stock checks.
@@ -98,13 +101,20 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
     await created.save({ session: sess || undefined });
     await addTimeline(created._id, { type: 'invoice_generated', message: t('timeline.invoice_generated', { invoiceNumber }) });
     // Record reservations for audit/ops (reserved until paid or released on cancel)
+    const shipToGeo = resolvedShipping?.postalCode || resolvedShipping?.country ? {
+      pincode: resolvedShipping?.postalCode,
+      country: resolvedShipping?.country,
+      lat: resolvedShipping?.lat,
+      lng: resolvedShipping?.lng
+    } : undefined;
     await reserveOrderItems({
       orderId: created._id,
       userId,
       items: reservationItems,
       session: sess || undefined,
       expiresInMinutes: config.RESERVATION_EXPIRES_MINUTES,
-      notes: 'order placement'
+      notes: 'order placement',
+      shipTo: shipToGeo
     });
     return created;
   };
@@ -126,11 +136,17 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
       }
     }
   } finally {
-    try { await session.endSession(); } catch {}
+    try { await session.endSession(); } catch (err) {
+      logger.warn({ err }, 'failed to end order creation session');
+    }
   }
 
   // Notify (dev logs)
-  try { await deliverEmail({ to: created.user?.email || 'customer@example.com', subject: t('email.invoice_subject', { invoiceNumber: created.invoiceNumber }), text: t('email.invoice_body', { invoiceUrl: created.invoiceUrl }) }); } catch {}
+  try {
+    await deliverEmail({ to: created.user?.email || 'customer@example.com', subject: t('email.invoice_subject', { invoiceNumber: created.invoiceNumber }), text: t('email.invoice_body', { invoiceUrl: created.invoiceUrl }) });
+  } catch (err) {
+    logger.warn({ err, orderId: String(created?._id) }, 'failed to send order confirmation email');
+  }
   return created;
 }
 

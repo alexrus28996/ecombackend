@@ -3,7 +3,10 @@
  */
 export const ROLES = Object.freeze({
   ADMIN: 'admin',
-  CUSTOMER: 'customer'
+  CUSTOMER: 'customer',
+  WAREHOUSE_MANAGER: 'warehouse_manager',
+  OPS_ADMIN: 'ops_admin',
+  SUPPORT: 'support'
 });
 
 /**

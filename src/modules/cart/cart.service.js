@@ -1,6 +1,6 @@
 import { Cart } from './cart.model.js';
 import { Product } from '../catalog/product.model.js';
-import { getAvailableStock } from '../inventory/inventory.service.js';
+import { getAvailableStock } from '../inventory/services/stock.service.js';
 import { getVariantWithDetails, attributeMapFromVariant } from '../catalog/variant.service.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { CART_STATUS } from '../../config/constants.js';

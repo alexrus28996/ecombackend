@@ -1,16 +1,21 @@
 import mongoose from 'mongoose';
+import { jest } from '@jest/globals';
 import { Address } from '../src/modules/users/address.model.js';
 import { createAddress, listAddresses, setDefaultAddress, updateAddress, deleteAddress } from '../src/modules/users/address.service.js';
+import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
 describe('Address book', () => {
   const userId = new mongoose.Types.ObjectId().toString();
+  let shouldSkip = false;
+  jest.setTimeout(10000);
   beforeAll(async () => {
-    await mongoose.connect(process.env.MONGO_URI, { dbName: process.env.DB_NAME });
-    await mongoose.connection.db.dropDatabase();
+    const { skip } = await connectOrSkip();
+    shouldSkip = skip;
   });
-  afterAll(async () => { await mongoose.disconnect(); });
+  afterAll(async () => { await disconnectIfNeeded(shouldSkip); });
 
   test('create, set default, update, delete', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
     const a1 = await createAddress(userId, { type: 'shipping', line1: '123 A', city: 'City', country: 'US', isDefault: true });
     const a2 = await createAddress(userId, { type: 'shipping', line1: '456 B', city: 'City', country: 'US' });
     let list = await listAddresses(userId, { type: 'shipping' });

@@ -1,5 +1,4 @@
 import { HttpError } from '../middleware/errors.js';
-import { ERROR_CODES } from './codes.js';
 import { MESSAGES, format } from './messages.js';
 
 export { ERROR_CODES } from './codes.js';

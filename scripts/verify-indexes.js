@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import mongoose from 'mongoose';
 import { config } from '../src/config/index.js';
-import { Inventory } from '../src/modules/inventory/inventory.model.js';
+import { Location } from '../src/modules/inventory/models/location.model.js';
+import { StockItem } from '../src/modules/inventory/models/stock-item.model.js';
+import { StockLedger } from '../src/modules/inventory/models/stock-ledger.model.js';
 import { Review } from '../src/modules/reviews/review.model.js';
 import { Category } from '../src/modules/catalog/category.model.js';
 import { Order } from '../src/modules/orders/order.model.js';
@@ -20,7 +22,9 @@ async function main() {
   await mongoose.connect(config.MONGO_URI, { dbName: config.DB_NAME || undefined });
   await showIndexes(Product, 'Product');
   await showIndexes(Order, 'Order');
-  await showIndexes(Inventory, 'Inventory');
+  await showIndexes(Location, 'Location');
+  await showIndexes(StockItem, 'StockItem');
+  await showIndexes(StockLedger, 'StockLedger');
   await showIndexes(Review, 'Review');
   await showIndexes(Category, 'Category');
   await showIndexes(PaymentTransaction, 'PaymentTransaction');

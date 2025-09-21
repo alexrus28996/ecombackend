@@ -8,8 +8,10 @@ import { t } from '../../i18n/index.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { convertReservationsToStock } from '../inventory/reservation.service.js';
 import mongoose from 'mongoose';
+import { getLogger } from '../../logger.js';
 
 const stripe = config.STRIPE_SECRET_KEY ? new Stripe(config.STRIPE_SECRET_KEY) : null;
+const logger = getLogger().child({ module: 'payments-stripe' });
 
 function toMinorUnits(amount, currency) {
   const curr = String(currency || 'USD').toUpperCase();
@@ -89,7 +91,9 @@ export async function applyPaymentIntentSucceeded(pi) {
       }
     }
   } finally {
-    try { await session.endSession(); } catch {}
+    try { await session.endSession(); } catch (err) {
+      logger.warn({ err }, 'failed to end stripe payment session');
+    }
   }
 
   if (fallback) {
@@ -112,11 +116,17 @@ export async function applyPaymentIntentSucceeded(pi) {
         providerRef: pi.id,
         raw: pi
       });
-    } catch {}
+    } catch (err) {
+      logger.error({ err, orderId: String(order._id) }, 'failed to record stripe payment transaction in fallback path');
+    }
   }
 
   if (!order) return;
-  try { await addTimeline(order._id, { type: 'payment_succeeded', message: t('timeline.payment_succeeded_stripe') }); } catch {}
+  try {
+    await addTimeline(order._id, { type: 'payment_succeeded', message: t('timeline.payment_succeeded_stripe') });
+  } catch (err) {
+    logger.warn({ err, orderId: String(order._id) }, 'failed to append stripe payment timeline entry');
+  }
 }
 
 export async function refundPaymentIntent(paymentIntentId, amountCents) {

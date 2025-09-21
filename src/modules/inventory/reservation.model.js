@@ -6,6 +6,7 @@ const reservationSchema = new mongoose.Schema(
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
     variantId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProductVariant', default: null },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+    locationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Location', required: true, index: true },
     reservedQty: { type: Number, required: true, min: 1 },
     status: {
       type: String,
@@ -16,12 +17,13 @@ const reservationSchema = new mongoose.Schema(
     expiryTimestamp: { type: Date, index: true },
     notes: { type: String },
     releasedAt: { type: Date },
-    convertedAt: { type: Date }
+    convertedAt: { type: Date },
+    metadata: { type: Map, of: mongoose.Schema.Types.Mixed }
   },
   { timestamps: true }
 );
 
-reservationSchema.index({ orderId: 1, productId: 1, variantId: 1 });
+reservationSchema.index({ orderId: 1, productId: 1, variantId: 1, locationId: 1 });
 
 export const Reservation = mongoose.model('Reservation', reservationSchema);
 

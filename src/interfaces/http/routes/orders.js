@@ -11,7 +11,6 @@ import {
   requestReturn as requestReturnController
 } from '../controllers/orders.controller.js';
 import { createOrderSchema } from '../validation/orders.validation.js';
-import { config } from '../../../config/index.js';
 
 /**
  * Order routes: create from cart, list, and get by id.

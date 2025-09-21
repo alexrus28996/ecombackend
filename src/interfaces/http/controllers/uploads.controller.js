@@ -1,4 +1,3 @@
-import { uploadImage } from '../../../utils/uploads.js';
 import { isCloudinaryEnabled, uploadImageBuffer, deleteAsset } from '../../../utils/cloudinary.js';
 
 export function localUploadHandler(req, res) {

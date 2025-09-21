@@ -41,10 +41,8 @@ export function loadEnv(raw = process.env) {
     API_DEFAULT_PAGE_SIZE: num({ default: 20 }),
     API_MAX_PAGE_SIZE: num({ default: 100 }),
     HEALTH_PATH: str({ default: '/health' }),
-    DOCS_PATH: str({ default: '/docs' })
-    ,
-    LOCALE: str({ default: 'en-US' })
-    ,
+    DOCS_PATH: str({ default: '/docs' }),
+    LOCALE: str({ default: 'en-US' }),
     // Payments (Stripe)
     STRIPE_SECRET_KEY: str({ default: '' }),
     STRIPE_WEBHOOK_SECRET: str({ default: '' }),
@@ -68,12 +66,17 @@ export function loadEnv(raw = process.env) {
     CSP_IMG_SRC: str({ default: '' }),
     CSP_SCRIPT_SRC: str({ default: '' }),
     CSP_STYLE_SRC: str({ default: '' }),
-    CSP_CONNECT_SRC: str({ default: '' })
-    ,
+    CSP_CONNECT_SRC: str({ default: '' }),
     // Jobs
     ORDER_AUTO_CANCEL_MINUTES: num({ default: 120 }),
     RESERVATION_EXPIRES_MINUTES: num({ default: 30 }),
     RESERVATION_SWEEP_INTERVAL_MS: num({ default: 60 * 1000 }),
+    PICKING_DEFAULT_STRATEGY: str({ default: 'PRIORITY_PROXIMITY_AVAILABILITY' }),
+    PICKING_PRIORITY_WEIGHT: num({ default: 0.6 }),
+    PICKING_DISTANCE_WEIGHT: num({ default: 0.2 }),
+    PICKING_HANDLING_COST_WEIGHT: num({ default: 0.1 }),
+    PICKING_AGE_WEIGHT: num({ default: 0.1 }),
+    PICKING_ALLOW_SPLIT: bool({ default: true }),
     // Queue / Redis
     QUEUE_ENABLED: bool({ default: false }),
     REDIS_URL: str({ default: '' })

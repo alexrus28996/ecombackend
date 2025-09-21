@@ -1,8 +1,10 @@
 import { Review } from './review.model.js';
 import { Product } from '../catalog/product.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
-import { t } from '../../i18n/index.js';
 import { Order } from '../orders/order.model.js';
+import { getLogger } from '../../logger.js';
+
+const logger = getLogger().child({ module: 'reviews-service' });
 
 export async function listProductReviews(productId, { limit = 20, page = 1, includeUnapproved = false } = {}) {
   const filter = { product: productId };
@@ -29,7 +31,9 @@ export async function upsertReview(productId, userId, { rating, comment }) {
       review.verifiedPurchase = true;
       await review.save();
     }
-  } catch {}
+  } catch (err) {
+    logger.warn({ err, productId: String(productId), userId: String(userId) }, 'failed to mark review as verified purchase');
+  }
   await recomputeProductRating(productId);
   return review;
 }

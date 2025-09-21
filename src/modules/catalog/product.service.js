@@ -65,8 +65,8 @@ export async function deleteProduct(id) {
   const product = await Product.findById(id);
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
   // Prevent delete if referenced by inventory/reviews/orders/shipments
-  const [{ Inventory }] = await Promise.all([import('../inventory/inventory.model.js')]);
-  const invCount = await Inventory.countDocuments({ product: id });
+  const [{ StockItem }] = await Promise.all([import('../inventory/models/stock-item.model.js')]);
+  const invCount = await StockItem.countDocuments({ productId: id });
   if (invCount > 0) throw errors.conflict(ERROR_CODES.PRODUCT_HAS_INVENTORY);
   const { Review } = await import('../reviews/review.model.js');
   const revCount = await Review.countDocuments({ product: id });

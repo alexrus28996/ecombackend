@@ -11,6 +11,7 @@ import { router as payments } from './payments.js';
 import { router as uploads } from './uploads.js';
 import { router as addresses } from './addresses.js';
 import { router as reservations } from './reservations.js';
+import { inventoryRouter } from '../../../modules/inventory/routes/index.js';
 
 /**
  * API router aggregator. Mounts domain routers under their prefixes.
@@ -29,3 +30,4 @@ router.use('/uploads', uploads);
 router.use('/addresses', addresses);
 router.use('/brands', brands);
 router.use('/admin/reservations', reservations);
+router.use('/inventory', inventoryRouter);

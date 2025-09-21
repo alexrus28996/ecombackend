@@ -1,4 +1,3 @@
-import express from 'express';
 import { createPaymentIntentForOrder, constructStripeEvent, applyPaymentIntentSucceeded } from '../../../modules/payments/stripe.service.js';
 
 export async function createStripeIntent(req, res) {

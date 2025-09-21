@@ -27,7 +27,7 @@ export function createApp() {
 
   app.use(pinoHttp({
     logger,
-    genReqId: (req, res) => req.headers['x-request-id'] || crypto.randomUUID(),
+    genReqId: (req, _res) => req.headers['x-request-id'] || crypto.randomUUID(),
     customProps: (req) => ({ requestId: req.id })
   }));
   // Basic request timing metrics
@@ -37,7 +37,9 @@ export function createApp() {
       try {
         const durMs = Number(process.hrtime.bigint() - start) / 1e6;
         req.log.info({ responseTimeMs: Math.round(durMs) }, 'request_timing');
-      } catch {}
+      } catch (err) {
+        req.log?.warn({ err }, 'failed to record request timing');
+      }
     });
     next();
   });

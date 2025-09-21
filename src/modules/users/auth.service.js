@@ -8,6 +8,9 @@ import { PasswordResetToken } from './password-reset-token.model.js';
 import { EmailToken } from './email-token.model.js';
 import { deliverEmail } from '../../utils/mailer.js';
 import { signAccessToken } from '../../utils/jwt.js';
+import { getLogger } from '../../logger.js';
+
+const logger = getLogger().child({ module: 'auth-service' });
 
 /**
  * Create a new user and return a public profile.
@@ -43,14 +46,22 @@ export async function login({ email, password }) {
       user.lockUntil = new Date(Date.now() + (config.LOCK_TIME_MS || 15 * 60 * 1000));
       user.failedLoginAttempts = 0;
     }
-    try { await user.save(); } catch {}
+    try {
+      await user.save();
+    } catch (err) {
+      logger.error({ err, userId: String(user._id) }, 'failed to persist failed login attempt state');
+    }
     throw errors.unauthorized(ERROR_CODES.INVALID_CREDENTIALS);
   }
   // Success → reset counters
   if (user.failedLoginAttempts || user.lockUntil) {
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
-    try { await user.save(); } catch {}
+    try {
+      await user.save();
+    } catch (err) {
+      logger.warn({ err, userId: String(user._id) }, 'failed to reset login counters after successful authentication');
+    }
   }
   const token = createJwt(user);
   const refreshToken = await createRefreshToken(user, { ip: undefined });
