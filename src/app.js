@@ -13,7 +13,13 @@ import { errorHandler, notFound } from './middleware/errors.js';
 import { router as apiRouter } from './interfaces/http/routes/index.js';
 import { buildOpenApiSpec } from './docs/spec.js';
 import { auditAdminWrites } from './middleware/audit.js';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
+// this part replaces __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 /**
  * Build and configure an Express application instance.
  * @returns {import('express').Express}
@@ -124,7 +130,9 @@ export function createApp() {
   const openapi = buildOpenApiSpec();
   app.get(`${config.DOCS_PATH}/openapi.json`, (req, res) => res.json(openapi));
   app.use(config.DOCS_PATH, swaggerUi.serve, swaggerUi.setup(openapi, { explorer: true }));
-
+   // save the JSON file into your project folder
+  const filePath = path.join(__dirname, "openapi.json");
+   fs.writeFileSync(filePath, JSON.stringify(openapi, null, 2), "utf-8");
   // API
   app.use(config.API_PREFIX, apiRouter);
 

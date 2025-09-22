@@ -131,6 +131,7 @@ router.post('/', authRequired, requireRole(ROLES.ADMIN), validate(productCreateS
 
 // Update a product (admin)
 router.put('/:id', authRequired, requireRole(ROLES.ADMIN), validate(productUpdateSchema), updateProductController);
+router.patch('/:id', authRequired, requireRole(ROLES.ADMIN), validate(productUpdateSchema), updateProductController);
 
 // Delete a product (admin)
 router.delete('/:id', authRequired, requireRole(ROLES.ADMIN), deleteProductController);
