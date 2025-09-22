@@ -9,6 +9,7 @@ import { Order } from '../src/modules/orders/order.model.js';
 import { addItem } from '../src/modules/cart/cart.service.js';
 import { Address } from '../src/modules/users/address.model.js';
 import { createOrderFromCart } from '../src/modules/orders/order.service.js';
+import { Reservation } from '../src/modules/inventory/reservation.model.js';
 import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
 jest.setTimeout(30000);
@@ -18,6 +19,7 @@ describe('Cart -> Order flow (integration)', () => {
   let category;
   let product;
   let location;
+  let digitalProduct;
   let shouldSkip = false;
 
   beforeAll(async () => {
@@ -27,6 +29,7 @@ describe('Cart -> Order flow (integration)', () => {
     try {
       category = await Category.create({ name: 'Shirts', slug: 'shirts' });
       product = await Product.create({ name: 'Tee', price: 20, currency: 'USD', category: category._id, isActive: true });
+      digitalProduct = await Product.create({ name: 'Online Course', price: 30, currency: 'USD', category: category._id, isActive: true, requiresShipping: false });
       location = await Location.create({ code: 'BOM', name: 'Mumbai FC', type: 'WAREHOUSE', priority: 8, active: true });
       await StockItem.create({ productId: product._id, variantId: null, locationId: location._id, onHand: 5, reserved: 0 });
       await Address.create({ user: userId, type: 'shipping', fullName: 'Ship User', line1: 'S1', city: 'SC', country: 'US', isDefault: true });
@@ -69,5 +72,19 @@ describe('Cart -> Order flow (integration)', () => {
 
     const savedOrder = await Order.findById(order._id);
     expect(savedOrder).toBeTruthy();
+});
+
+  test('checkout succeeds for non-shipping products without inventory', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    const cart = await addItem(userId, { productId: digitalProduct._id.toString(), quantity: 2 });
+    expect(cart.items.find((it) => String(it.product) === digitalProduct._id.toString())?.quantity).toBe(2);
+
+    const order = await createOrderFromCart(userId, {});
+    expect(order.items.length).toBe(1);
+    expect(String(order.items[0].product)).toBe(digitalProduct._id.toString());
+    expect(order.items[0].quantity).toBe(2);
+
+    const reservations = await Reservation.countDocuments({ orderId: order._id });
+    expect(reservations).toBe(0);
   });
 });

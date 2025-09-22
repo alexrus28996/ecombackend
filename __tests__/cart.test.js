@@ -12,6 +12,7 @@ jest.setTimeout(30000);
 describe('Cart service', () => {
   const userId = new mongoose.Types.ObjectId().toString();
   let product;
+  let digitalProduct;
   let shouldSkip = false;
   beforeAll(async () => {
     const { skip } = await connectOrSkip();
@@ -20,6 +21,7 @@ describe('Cart service', () => {
     try {
       const cat = await Category.create({ name: 'Shoes', slug: 'shoes' });
       product = await Product.create({ name: 'Sneaker', price: 50, currency: 'USD', category: cat._id, isActive: true });
+      digitalProduct = await Product.create({ name: 'E-Book', price: 15, currency: 'USD', category: cat._id, isActive: true, requiresShipping: false });
       const location = await Location.create({ code: 'DEL', name: 'Delhi DC', type: 'WAREHOUSE', priority: 10, active: true });
       await StockItem.create({ productId: product._id, variantId: null, locationId: location._id, onHand: 2, reserved: 0 });
     } catch (err) {
@@ -50,6 +52,14 @@ describe('Cart service', () => {
 
     const cart5 = await clearCart(userId);
     expect(cart5.items.length).toBe(0);
+  });
+
+  test('allows adding non-shipping products without inventory records', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    const cart = await addItem(userId, { productId: digitalProduct._id.toString(), quantity: 3 });
+    const item = cart.items.find((it) => String(it.product) === digitalProduct._id.toString());
+    expect(item?.quantity).toBe(3);
+    await clearCart(userId);
   });
 });
 

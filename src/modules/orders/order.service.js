@@ -54,10 +54,15 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
       const q = Product.findById(it.product);
       const product = sess ? await q.session(sess) : await q;
       if (!product || !product.isActive) throw errors.badRequest(ERROR_CODES.PRODUCT_UNAVAILABLE, { name: it.name });
-      const available = await getAvailableStock(product._id, it.variant || null);
-      if (available < it.quantity) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK, { name: it.name });
+      const shouldCheckStock = product.requiresShipping !== false;
+      if (shouldCheckStock) {
+        const available = await getAvailableStock(product._id, it.variant || null);
+        if (available < it.quantity) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK, { name: it.name });
+      }
       items.push({ product: product._id, variant: it.variant || undefined, name: it.name || product.name, price: it.price, currency: cart.currency, quantity: it.quantity });
-      reservationItems.push({ productId: product._id, variantId: it.variant || null, quantity: it.quantity });
+      if (shouldCheckStock) {
+        reservationItems.push({ productId: product._id, variantId: it.variant || null, quantity: it.quantity });
+      }
     }
 
     const subtotal = items.reduce((s, it) => s + it.price * it.quantity, 0);
