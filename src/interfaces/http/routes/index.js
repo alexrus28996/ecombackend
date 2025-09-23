@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { router as auth } from './auth.js';
 import { productRouter } from '../../../routes/productRoutes.js';
 import { router as cart } from './cart.js';
-import { router as orders } from './orders.js';
+import { router as legacyOrders } from './orders.js';
 import { router as admin } from './admin.js';
 import { categoryRouter } from '../../../routes/categoryRoutes.js';
 import { router as reviews } from './reviews.js';
@@ -13,6 +13,7 @@ import { router as addresses } from './addresses.js';
 import { router as reservations } from './reservations.js';
 import { inventoryRouter } from '../../../routes/inventoryRoutes.js';
 import { permissionRouter } from '../../../routes/permissionRoutes.js';
+import { orderRouter } from '../../../routes/orderRoutes.js';
 
 /**
  * API router aggregator. Mounts domain routers under their prefixes.
@@ -22,7 +23,8 @@ export const router = Router();
 router.use('/auth', auth);
 router.use('/products', productRouter);
 router.use('/cart', cart);
-router.use('/orders', orders);
+router.use('/orders', orderRouter);
+router.use('/orders', legacyOrders);
 router.use('/admin', admin);
 router.use('/categories', categoryRouter);
 router.use('/products/:productId/reviews', reviews);

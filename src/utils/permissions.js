@@ -6,7 +6,9 @@ export const PERMISSIONS = {
   CATEGORY_EDIT: 'category:edit',
   CATEGORY_DELETE: 'category:delete',
   INVENTORY_MANAGE: 'inventory:manage',
-  ORDER_VIEW: 'order:view'
+  ORDER_VIEW: 'order:view',
+  ORDER_CREATE: 'order:create',
+  ORDER_MANAGE: 'order:manage'
 };
 
 export const WRITE_PERMISSIONS = new Set([
@@ -16,5 +18,7 @@ export const WRITE_PERMISSIONS = new Set([
   PERMISSIONS.CATEGORY_CREATE,
   PERMISSIONS.CATEGORY_EDIT,
   PERMISSIONS.CATEGORY_DELETE,
-  PERMISSIONS.INVENTORY_MANAGE
+  PERMISSIONS.INVENTORY_MANAGE,
+  PERMISSIONS.ORDER_CREATE,
+  PERMISSIONS.ORDER_MANAGE
 ]);
