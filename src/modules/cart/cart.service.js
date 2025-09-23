@@ -43,26 +43,31 @@ export async function addItem(userId, { productId, variantId, quantity = 1 }) {
   let currency = product.currency;
   let variantMeta = {};
   const shouldCheckStock = product.requiresShipping !== false;
+  let available = Infinity;
   if (variantId) {
     const variant = await getVariantWithDetails(variantId);
     if (String(variant.product) !== String(productId) || !variant.isActive) {
       throw errors.badRequest(ERROR_CODES.PRODUCT_UNAVAILABLE, { name: product.name });
     }
     if (shouldCheckStock) {
-      const available = await getAvailableStock(product._id, variantId);
+      available = await getAvailableStock(product._id, variantId);
       if (available < quantity) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK);
     }
     unitPrice = resolveVariantPrice(product.price, variant);
     variantMeta = { variant: variant._id, sku: variant.sku, attributes: attributeMapFromVariant(variant) };
   } else {
     if (shouldCheckStock) {
-      const available = await getAvailableStock(product._id, null);
+      available = await getAvailableStock(product._id, null);
       if (available < quantity) throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK);
     }
   }
 
   const cart = await getOrCreateCart(userId);
   const idx = cart.items.findIndex((it) => it.product.toString() === productId && String(it.variant || '') === String(variantMeta.variant || ''));
+  const currentQuantity = idx >= 0 ? Number(cart.items[idx].quantity || 0) : 0;
+  if (available < currentQuantity + quantity) {
+    throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK);
+  }
   if (idx >= 0) {
     cart.items[idx].quantity += quantity;
   } else {

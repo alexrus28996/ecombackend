@@ -3,6 +3,7 @@ import { StockItem } from '../models/stock-item.model.js';
 import { StockLedger } from '../models/stock-ledger.model.js';
 import { TransferOrder } from '../models/transfer-order.model.js';
 import { Location } from '../models/location.model.js';
+import { Product } from '../../catalog/product.model.js';
 import { ProductVariant } from '../../catalog/product-variant.model.js';
 import { errors, ERROR_CODES } from '../../../errors/index.js';
 import { haversineDistanceKm } from './geo.js';
@@ -111,7 +112,19 @@ export async function queryStock({
 export async function getAvailableStock(productId, variantId) {
   if (!productId) return 0;
   const items = await StockItem.find({ productId, variantId: variantId || null }).lean();
-  if (!items.length) return 0;
+  if (!items.length) {
+    if (variantId) {
+      const variant = await ProductVariant.findById(variantId).lean();
+      if (variant && String(variant.product) === String(productId) && Number.isFinite(Number(variant.stock))) {
+        return Math.max(0, Number(variant.stock));
+      }
+    }
+    const product = await Product.findById(productId).lean();
+    if (product && Number.isFinite(Number(product.stock))) {
+      return Math.max(0, Number(product.stock));
+    }
+    return 0;
+  }
   const locIds = [...new Set(items.map((item) => String(item.locationId)))];
   const locations = await Location.find({ _id: { $in: locIds }, deletedAt: { $exists: false }, active: true }).lean();
   const locationMap = new Map(locations.map((loc) => [String(loc._id), loc]));
