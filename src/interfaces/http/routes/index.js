@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { router as auth } from './auth.js';
-import { router as products } from './products.js';
+import { productRouter } from '../../../routes/productRoutes.js';
 import { router as cart } from './cart.js';
 import { router as orders } from './orders.js';
 import { router as admin } from './admin.js';
@@ -11,7 +11,8 @@ import { router as payments } from './payments.js';
 import { router as uploads } from './uploads.js';
 import { router as addresses } from './addresses.js';
 import { router as reservations } from './reservations.js';
-import { inventoryRouter } from '../../../modules/inventory/routes/index.js';
+import { inventoryRouter } from '../../../routes/inventoryRoutes.js';
+import { permissionRouter } from '../../../routes/permissionRoutes.js';
 
 /**
  * API router aggregator. Mounts domain routers under their prefixes.
@@ -19,7 +20,7 @@ import { inventoryRouter } from '../../../modules/inventory/routes/index.js';
 export const router = Router();
 
 router.use('/auth', auth);
-router.use('/products', products);
+router.use('/products', productRouter);
 router.use('/cart', cart);
 router.use('/orders', orders);
 router.use('/admin', admin);
@@ -31,3 +32,4 @@ router.use('/addresses', addresses);
 router.use('/brands', brands);
 router.use('/admin/reservations', reservations);
 router.use('/inventory', inventoryRouter);
+router.use('/permissions', permissionRouter);

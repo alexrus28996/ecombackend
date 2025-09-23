@@ -73,7 +73,13 @@ export async function login({ email, password }) {
  * @param {{ _id: any, email: string, name: string, roles: string[] }} user
  */
 export function createJwt(user) {
-  const payload = { sub: user._id.toString(), email: user.email, name: user.name, roles: user.roles };
+  const payload = {
+    sub: user._id.toString(),
+    email: user.email,
+    name: user.name,
+    roles: user.roles,
+    permissions: user.permissions || []
+  };
   return signAccessToken(payload);
 }
 
@@ -174,7 +180,15 @@ export async function resetPassword(rawToken, newPassword) {
  * @param {any} user
  */
 export function toPublicUser(user) {
-  return { id: user._id.toString(), name: user.name, email: user.email, roles: user.roles, isActive: user.isActive, isVerified: !!user.isVerified };
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    roles: user.roles,
+    permissions: user.permissions || [],
+    isActive: user.isActive,
+    isVerified: !!user.isVerified
+  };
 }
 
 /**

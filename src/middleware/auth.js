@@ -12,7 +12,7 @@ export function authRequired(req, res, next) {
   const token = auth.substring(7);
   try {
     const payload = verifyAccessToken(token);
-    req.user = payload; // { sub, roles, email, name }
+    req.user = { ...payload, permissions: payload.permissions || [] }; // { sub, roles, email, name, permissions }
     next();
   } catch (err) {
     next(errors.unauthorized(ERROR_CODES.TOKEN_INVALID));
