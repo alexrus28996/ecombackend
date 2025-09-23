@@ -65,4 +65,4 @@ productSchema.index({ category: 1 });
 // slug already has unique constraint on field definition; avoid duplicate index
 productSchema.index({ name: 'text', description: 'text' });
 
-export const Product = mongoose.model('Product', productSchema);
+export const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
