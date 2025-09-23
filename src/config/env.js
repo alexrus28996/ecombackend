@@ -26,6 +26,8 @@ export function loadEnv(raw = process.env) {
     DB_SLOW_MS: num({ default: 50 }),
     RATE_LIMIT_WINDOW_MS: num({ default: 15 * 60 * 1000 }),
     RATE_LIMIT_MAX: num({ default: 200 }),
+    PRODUCTS_HARD_DELETE: bool({ default: false }),
+    CATEGORIES_HARD_DELETE: bool({ default: false }),
     AUTH_RATE_LIMIT_WINDOW_MS: num({ default: 60 * 1000 }),
     AUTH_RATE_LIMIT_MAX: num({ default: 20 }),
     MAX_LOGIN_ATTEMPTS: num({ default: 5 }),

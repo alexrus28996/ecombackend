@@ -1,14 +1,18 @@
 import mongoose from 'mongoose';
+import { config } from '../config/index.js';
+import { Category } from '../models/Category.js';
 import { Product } from '../models/Product.js';
 import { HttpError, normalizeError } from '../utils/errorHandler.js';
+
+const { PRODUCTS_HARD_DELETE } = config;
 
 /**
  * Helper: ensure we work with positive numbers.
  */
 function parsePrice(value, field = 'price') {
   const num = Number(value);
-  if (!Number.isFinite(num) || num <= 0) {
-    throw new HttpError(400, `${field} must be greater than 0`);
+  if (!Number.isFinite(num) || num < 0) {
+    throw new HttpError(400, `${field} must be greater than or equal to 0`);
   }
   return num;
 }
@@ -94,7 +98,7 @@ function generateVariantsFromAttributes(baseSku, attributes, basePrice, defaultS
   });
 }
 
-function sanitizeVariants(rawVariants, attributes, baseSku) {
+function sanitizeVariants(rawVariants, attributes) {
   if (!Array.isArray(rawVariants)) return [];
   return rawVariants.map((variant, index) => {
     if (!variant || typeof variant !== 'object') {
@@ -134,12 +138,21 @@ function sanitizeVariants(rawVariants, attributes, baseSku) {
 
 function formatProductResponse(product) {
   const doc = product.toObject({ versionKey: false });
+  const category =
+    doc.category && typeof doc.category === 'object'
+      ? {
+          id: doc.category._id?.toString() ?? doc.category.id ?? doc.category,
+          name: doc.category.name,
+          slug: doc.category.slug,
+          status: doc.category.status
+        }
+      : doc.category;
   return {
     id: doc._id.toString(),
     name: doc.name,
     sku: doc.sku,
     price: doc.price,
-    category: doc.category,
+    category,
     images: doc.images,
     stock: doc.stock,
     attributes: doc.attributes || {},
@@ -152,6 +165,7 @@ function formatProductResponse(product) {
       status: variant.status
     })),
     status: doc.status,
+    deletedAt: doc.deletedAt,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt
   };
@@ -168,6 +182,13 @@ function recomputeAggregateStock(product) {
   product.stock = product.variants.reduce((sum, variant) => sum + (variant.stock || 0), 0);
 }
 
+async function ensureCategoryExists(categoryId) {
+  const exists = await Category.exists({ _id: categoryId, deletedAt: null });
+  if (!exists) {
+    throw new HttpError(400, 'Category not found');
+  }
+}
+
 export async function createProduct(req, res, next) {
   try {
     const { name, sku, price, category, images, attributes, variants, stock, status } = req.body;
@@ -180,9 +201,20 @@ export async function createProduct(req, res, next) {
       throw new HttpError(400, 'Invalid category id');
     }
 
+    await ensureCategoryExists(category);
+
+    if (status !== undefined && !['active', 'inactive'].includes(status)) {
+      throw new HttpError(400, 'Status must be active or inactive');
+    }
+
+    const existingSku = await Product.findOne({ sku: skuValue.toUpperCase(), deletedAt: null });
+    if (existingSku) {
+      throw new HttpError(409, 'SKU must be unique');
+    }
+
     const productAttributes = sanitizeAttributes(attributes);
 
-    let productVariants = sanitizeVariants(variants, productAttributes, skuValue.toUpperCase());
+    let productVariants = sanitizeVariants(variants, productAttributes);
     if (!productVariants.length && Object.keys(productAttributes).length) {
       productVariants = generateVariantsFromAttributes(skuValue.toUpperCase(), productAttributes, priceValue, stock);
     }
@@ -196,11 +228,13 @@ export async function createProduct(req, res, next) {
       stock: parseStock(productVariants.length ? productVariants.reduce((sum, v) => sum + v.stock, 0) : stock),
       attributes: productAttributes,
       variants: productVariants,
-      status: status === 'inactive' ? 'inactive' : 'active'
+      status: status === 'inactive' ? 'inactive' : 'active',
+      deletedAt: null
     };
 
     const product = await Product.create(productData);
-    res.status(201).json({ data: formatProductResponse(product) });
+    const populated = await product.populate('category', 'name slug status');
+    res.status(201).json({ data: formatProductResponse(populated) });
   } catch (error) {
     next(normalizeError(error));
   }
@@ -211,20 +245,31 @@ export async function updateProduct(req, res, next) {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) throw new HttpError(400, 'Invalid product id');
 
-    const product = await Product.findById(id);
+    const product = await Product.findOne({ _id: id, deletedAt: null });
     ensureProductExists(product);
 
-    const { name, price, category, images, attributes, variants, stock, status } = req.body;
+    const { name, price, category, images, attributes, variants, stock, status, sku } = req.body;
 
     if (name !== undefined) {
       if (!name || typeof name !== 'string') throw new HttpError(400, 'Name must be a non-empty string');
       product.name = name.trim();
+    }
+    if (sku !== undefined) {
+      const nextSku = String(sku || '').trim();
+      if (!nextSku) throw new HttpError(400, 'SKU is required');
+      const normalizedSku = nextSku.toUpperCase();
+      const conflict = await Product.findOne({ sku: normalizedSku, _id: { $ne: id }, deletedAt: null });
+      if (conflict) {
+        throw new HttpError(409, 'SKU must be unique');
+      }
+      product.sku = normalizedSku;
     }
     if (price !== undefined) {
       product.price = parsePrice(price);
     }
     if (category !== undefined) {
       if (!mongoose.isValidObjectId(category)) throw new HttpError(400, 'Invalid category id');
+      await ensureCategoryExists(category);
       product.category = category;
     }
     if (images !== undefined) {
@@ -239,7 +284,7 @@ export async function updateProduct(req, res, next) {
     }
 
     if (variants !== undefined) {
-      product.variants = sanitizeVariants(variants, productAttributes, product.sku);
+      product.variants = sanitizeVariants(variants, productAttributes);
       variantsUpdated = true;
     }
 
@@ -262,6 +307,7 @@ export async function updateProduct(req, res, next) {
     }
 
     await product.save();
+    await product.populate('category', 'name slug status');
     res.json({ data: formatProductResponse(product) });
   } catch (error) {
     next(normalizeError(error));
@@ -273,8 +319,17 @@ export async function deleteProduct(req, res, next) {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) throw new HttpError(400, 'Invalid product id');
 
-    const product = await Product.findByIdAndDelete(id);
-    ensureProductExists(product);
+    if (PRODUCTS_HARD_DELETE) {
+      const product = await Product.findByIdAndDelete(id);
+      ensureProductExists(product);
+    } else {
+      const product = await Product.findOne({ _id: id, deletedAt: null });
+      ensureProductExists(product);
+      product.status = 'inactive';
+      product.deletedAt = new Date();
+      await product.save();
+    }
+
     res.status(204).send();
   } catch (error) {
     next(normalizeError(error));
@@ -286,7 +341,7 @@ export async function listProducts(req, res, next) {
     const { page = 1, limit = 20, status, category, minPrice, maxPrice } = req.query;
     const pageNum = Math.max(Number(page) || 1, 1);
     const limitNum = Math.min(Math.max(Number(limit) || 20, 1), 100);
-    const filter = {};
+    const filter = { deletedAt: null };
 
     if (status) {
       if (!['active', 'inactive'].includes(status)) throw new HttpError(400, 'Invalid status filter');
@@ -332,7 +387,7 @@ export async function getProduct(req, res, next) {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) throw new HttpError(400, 'Invalid product id');
 
-    const product = await Product.findById(id);
+    const product = await Product.findOne({ _id: id, deletedAt: null }).populate('category', 'name slug status');
     ensureProductExists(product);
     res.json({ data: formatProductResponse(product) });
   } catch (error) {

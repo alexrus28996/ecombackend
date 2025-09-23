@@ -70,6 +70,7 @@ Users & Addresses
 
 Catalog
 - [x] P1 Brand model + CRUD; product.brand reference; index brand
+- [x] P0 Product & Category PBAC endpoints with soft-delete controls
 - [ ] P1 Attribute/Option config per product; variant matrix generation
 - [x] P1 Enforce category leaf assignment (disallow non-leaf if using deep trees)
 - [x] P1 Product text index on name/description; slug uniqueness guard

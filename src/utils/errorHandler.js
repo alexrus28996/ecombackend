@@ -18,7 +18,13 @@ export function normalizeError(err) {
 
   if (err?.code === 11000) {
     const fields = Object.keys(err.keyValue || {});
-    const fieldMsg = fields.length ? `Duplicate value for ${fields.join(', ')}` : 'Duplicate value';
+    const field = fields[0];
+    const duplicateMessages = {
+      sku: 'SKU must be unique',
+      slug: 'Category slug already exists',
+      name: 'Category name already exists'
+    };
+    const fieldMsg = duplicateMessages[field] || (fields.length ? `Duplicate value for ${fields.join(', ')}` : 'Duplicate value');
     return new HttpError(409, fieldMsg);
   }
 

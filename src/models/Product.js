@@ -52,14 +52,13 @@ const ProductSchema = new Schema(
     sku: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       uppercase: true
     },
     price: {
       type: Number,
       required: true,
-      min: [0, 'Price must be greater than zero']
+      min: [0, 'Price must be greater than or equal to zero']
     },
     category: {
       type: Schema.Types.ObjectId,
@@ -94,11 +93,16 @@ const ProductSchema = new Schema(
       enum: ['active', 'inactive'],
       default: 'active',
       index: true
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true
     }
   },
   { timestamps: true }
 );
 
-ProductSchema.index({ sku: 1 });
+ProductSchema.index({ sku: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
 
 export const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
