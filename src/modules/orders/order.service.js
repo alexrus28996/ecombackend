@@ -53,7 +53,15 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
     for (const it of cart.items) {
       const q = Product.findById(it.product);
       const product = sess ? await q.session(sess) : await q;
-      if (!product || !product.isActive) throw errors.badRequest(ERROR_CODES.PRODUCT_UNAVAILABLE, { name: it.name });
+      if (!product || !product.isActive) {
+        const errorDetails = { productId: String(it.product) };
+        if (it.variant) errorDetails.variantId = String(it.variant);
+        throw errors.badRequest(
+          ERROR_CODES.PRODUCT_UNAVAILABLE,
+          { name: product?.name || it.name },
+          errorDetails
+        );
+      }
       const shouldCheckStock = product.requiresShipping !== false;
       if (shouldCheckStock) {
         const available = await getAvailableStock(product._id, it.variant || null);

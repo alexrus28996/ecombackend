@@ -9,6 +9,7 @@ import { Order } from '../src/modules/orders/order.model.js';
 import { addItem } from '../src/modules/cart/cart.service.js';
 import { Address } from '../src/modules/users/address.model.js';
 import { createOrderFromCart } from '../src/modules/orders/order.service.js';
+import { ERROR_CODES } from '../src/errors/codes.js';
 import { Reservation } from '../src/modules/inventory/reservation.model.js';
 import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
@@ -86,5 +87,33 @@ describe('Cart -> Order flow (integration)', () => {
 
     const reservations = await Reservation.countDocuments({ orderId: order._id });
     expect(reservations).toBe(0);
+  });
+
+  test('returns PRODUCT_UNAVAILABLE with item identifiers when product is disabled after adding to cart', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    const inactiveProduct = await Product.create({
+      name: 'Mango',
+      price: 12,
+      currency: 'USD',
+      category: category._id,
+      isActive: true
+    });
+    await StockItem.create({
+      productId: inactiveProduct._id,
+      variantId: null,
+      locationId: location._id,
+      onHand: 5,
+      reserved: 0
+    });
+
+    await addItem(userId, { productId: inactiveProduct._id.toString(), quantity: 1 });
+    await Product.findByIdAndUpdate(inactiveProduct._id, { isActive: false });
+
+    await expect(createOrderFromCart(userId, {})).rejects.toMatchObject({
+      code: ERROR_CODES.PRODUCT_UNAVAILABLE,
+      details: {
+        productId: inactiveProduct._id.toString()
+      }
+    });
   });
 });
