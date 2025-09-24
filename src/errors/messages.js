@@ -40,7 +40,11 @@ export const MESSAGES = Object.freeze({
   [ERROR_CODES.QUANTITY_POSITIVE]: 'Quantity must be greater than 0',
   [ERROR_CODES.INSUFFICIENT_STOCK]: 'Insufficient stock',
 
-  [ERROR_CODES.ORDER_NOT_FOUND]: 'Order not found'
+  [ERROR_CODES.ORDER_NOT_FOUND]: 'Order not found',
+
+  [ERROR_CODES.CURRENCY_UNSUPPORTED]: 'Unsupported currency {currency}',
+  [ERROR_CODES.FX_RATE_NOT_FOUND]: 'FX rate not configured for {currency}',
+  [ERROR_CODES.FX_RATE_SELF_REFERENCE]: 'Cannot set FX rate for base currency {currency}'
 });
 
 /**

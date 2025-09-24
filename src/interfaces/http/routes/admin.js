@@ -17,6 +17,9 @@ import {
   getCouponController,
   updateCouponController,
   deleteCouponController,
+  listCurrencyRatesController,
+  upsertCurrencyRateController,
+  deleteCurrencyRateController,
   listAdjustmentsController,
   createAdjustmentController,
   listInventoryController,
@@ -43,7 +46,7 @@ import {
   productReferencesController,
   brandReferencesController
 } from '../controllers/admin.controller.js';
-import { idParam, updateUserSchema, updateOrderSchema, couponSchema, adjustSchema, importSchema, priceBulkSchema, categoryBulkSchema, shipmentCreateSchema, variantsMatrixSchema, returnApproveSchema } from '../validation/admin.validation.js';
+import { idParam, updateUserSchema, updateOrderSchema, couponSchema, adjustSchema, importSchema, priceBulkSchema, categoryBulkSchema, shipmentCreateSchema, variantsMatrixSchema, returnApproveSchema, currencyRateListSchema, currencyRateSchema, currencyRateDeleteSchema } from '../validation/admin.validation.js';
 import { idempotency } from '../../../middleware/idempotency.js';
 import {
   listCategories as listCategoriesController,
@@ -81,6 +84,11 @@ router.post('/coupons', authRequired, requireRole(ROLES.ADMIN), validate(couponS
 router.get('/coupons/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getCouponController);
 router.put('/coupons/:id', authRequired, requireRole(ROLES.ADMIN), validate({ ...idParam, ...couponSchema }), updateCouponController);
 router.delete('/coupons/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), deleteCouponController);
+
+// Currency rates
+router.get('/currency-rates', authRequired, requireRole(ROLES.ADMIN), validate(currencyRateListSchema), listCurrencyRatesController);
+router.post('/currency-rates', authRequired, requireRole(ROLES.ADMIN), validate(currencyRateSchema), upsertCurrencyRateController);
+router.delete('/currency-rates/:currency', authRequired, requireRole(ROLES.ADMIN), validate(currencyRateDeleteSchema), deleteCurrencyRateController);
 
 // Inventory
 router.get('/inventory/adjustments', authRequired, requireRole(ROLES.ADMIN), listAdjustmentsController);
@@ -134,3 +142,7 @@ router.get('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brand
 router.put('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandUpdateSchema), updateBrandController);
 router.delete('/brands/:id', authRequired, requireRole(ROLES.ADMIN), validate(brandIdParam), deleteBrandController);
 router.get('/brands/:id/references', authRequired, requireRole(ROLES.ADMIN), validate(brandIdParam), brandReferencesController);
+
+
+
+

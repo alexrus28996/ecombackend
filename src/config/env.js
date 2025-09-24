@@ -40,6 +40,9 @@ export function loadEnv(raw = process.env) {
     API_PREFIX: str({ default: '/api' }),
     JSON_BODY_LIMIT: str({ default: '1mb' }),
     DEFAULT_CURRENCY: str({ default: 'USD' }),
+    FX_BASE_CURRENCY: str({ default: '' }),
+    FX_ROUNDING_MODE: str({ default: 'HALF_UP', choices: ['HALF_UP', 'UP', 'DOWN'] }),
+    FX_ROUNDING_INCREMENT: num({ default: 0.01 }),
     API_DEFAULT_PAGE_SIZE: num({ default: 20 }),
     API_MAX_PAGE_SIZE: num({ default: 100 }),
     HEALTH_PATH: str({ default: '/health' }),
@@ -84,3 +87,6 @@ export function loadEnv(raw = process.env) {
     REDIS_URL: str({ default: '' })
   });
 }
+
+
+

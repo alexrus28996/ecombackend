@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { ORDER_STATUS, PAYMENT_STATUS } from '../../../config/constants.js';
 
+const currencyCode = z.string().trim().regex(/^[A-Za-z]{3}$/, { message: 'Currency code must be ISO 4217' }).transform((val) => val.toUpperCase());
+
 export const idParam = { params: z.object({ id: z.string().min(1) }) };
 
 export const updateUserSchema = { body: z.object({ isActive: z.boolean().optional() }) };
@@ -84,5 +86,24 @@ export const variantsMatrixSchema = { body: z.object({
   options: z.record(z.array(z.string().min(1)).min(1)),
   base: z.object({ price: z.coerce.number().nonnegative().optional(), skuPrefix: z.string().optional() }).optional()
 }) };
+
+
+
+
+
+
+export const currencyRateListSchema = { query: z.object({ baseCurrency: currencyCode.optional() }).optional() };
+
+export const currencyRateSchema = { body: z.object({
+  baseCurrency: currencyCode.optional(),
+  currency: currencyCode,
+  rate: z.coerce.number().gt(0),
+  source: z.string().max(120).optional()
+}) };
+
+export const currencyRateDeleteSchema = {
+  params: z.object({ currency: currencyCode }),
+  query: z.object({ baseCurrency: currencyCode.optional() }).optional()
+};
 
 

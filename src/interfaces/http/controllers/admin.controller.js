@@ -5,6 +5,7 @@ import { Order } from '../../../modules/orders/order.model.js';
 import { ROLES, ORDER_STATUS } from '../../../config/constants.js';
 import { config } from '../../../config/index.js';
 import { createCoupon, listCoupons, getCoupon, updateCoupon, deleteCoupon } from '../../../modules/coupons/coupon.service.js';
+import { listRates as listCurrencyRates, upsertRate as upsertCurrencyRate, removeRate as removeCurrencyRate } from '../../../modules/pricing/currency.service.js';
 import { adjustStockLevels, listAdjustments as listStockAdjustments, listInventoryItems } from '../../../modules/inventory/services/stock.service.js';
 import { releaseOrderReservations } from '../../../modules/inventory/reservation.service.js';
 import slugify from 'slugify';
@@ -168,6 +169,25 @@ export async function updateCouponController(req, res) {
 export async function deleteCouponController(req, res) {
   const result = await deleteCoupon(req.validated.params.id);
   res.json(result);
+}
+
+export async function listCurrencyRatesController(req, res) {
+  const baseCurrency = req.validated?.query?.baseCurrency || req.query?.baseCurrency;
+  const result = await listCurrencyRates(baseCurrency);
+  res.json(result);
+}
+
+export async function upsertCurrencyRateController(req, res) {
+  const { baseCurrency, currency, rate, source } = req.validated.body;
+  const doc = await upsertCurrencyRate({ baseCurrency, currency, rate, source });
+  res.status(201).json({ rate: doc });
+}
+
+export async function deleteCurrencyRateController(req, res) {
+  const { currency } = req.validated.params;
+  const baseCurrency = req.validated?.query?.baseCurrency || req.query?.baseCurrency;
+  await removeCurrencyRate({ currency, baseCurrency });
+  res.json({ success: true });
 }
 
 export async function listAdjustmentsController(req, res) {
@@ -553,7 +573,8 @@ export async function exportProductsController(req, res) {
       const row = [
         p.name,
         p.slug || '',
-        (p.description || '').replace(/\n|\r|,/g, ' '),
+        (p.description || '').replace(/
+|\r|,/g, ' '),
         String(p.price ?? ''),
         p.currency || '',
         String(p.isActive ?? ''),
@@ -564,7 +585,8 @@ export async function exportProductsController(req, res) {
       ].map((v) => `"${String(v).replace(/"/g, '""')}"`);
       lines.push(row.join(','));
     }
-    const csv = lines.join('\n');
+    const csv = lines.join('
+');
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="products.csv"');
     return res.send(csv);
@@ -659,3 +681,6 @@ export async function categoryBulkController(req, res) {
   const result = await Product.updateMany({ _id: { $in: productIds } }, { $set: { category: categoryId } });
   res.json({ matched: result.matchedCount ?? result.n, modified: result.modifiedCount ?? result.nModified });
 }
+
+
+
