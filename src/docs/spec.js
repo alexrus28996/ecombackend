@@ -642,7 +642,32 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Create coupon (admin)',
           security: [{ bearerAuth: [] }],
-          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { code: { type: 'string' }, description: { type: 'string' }, type: { type: 'string', enum: ['percent', 'fixed'] }, value: { type: 'number' }, minSubtotal: { type: 'number' }, expiresAt: { type: 'string' }, isActive: { type: 'boolean' } }, required: ['code', 'type', 'value'] } } } },
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'string' },
+                    description: { type: 'string' },
+                    type: { type: 'string', enum: ['percent', 'fixed'] },
+                    value: { type: 'number' },
+                    minSubtotal: { type: 'number' },
+                    expiresAt: { type: 'string', format: 'date-time' },
+                    isActive: { type: 'boolean' },
+                    includeCategories: { type: 'array', items: { type: 'string' } },
+                    excludeCategories: { type: 'array', items: { type: 'string' } },
+                    includeProducts: { type: 'array', items: { type: 'string' } },
+                    excludeProducts: { type: 'array', items: { type: 'string' } },
+                    perUserLimit: { type: 'integer', minimum: 0 },
+                    globalLimit: { type: 'integer', minimum: 0 }
+                  },
+                  required: ['code', 'type', 'value']
+                }
+              }
+            }
+          },
           responses: { '201': { description: 'Created' } }
         }
       },
@@ -657,7 +682,31 @@ export function buildOpenApiSpec() {
           summary: 'Update coupon (admin)',
           security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } },
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'string' },
+                    description: { type: 'string' },
+                    type: { type: 'string', enum: ['percent', 'fixed'] },
+                    value: { type: 'number' },
+                    minSubtotal: { type: 'number' },
+                    expiresAt: { type: 'string', format: 'date-time' },
+                    isActive: { type: 'boolean' },
+                    includeCategories: { type: 'array', items: { type: 'string' } },
+                    excludeCategories: { type: 'array', items: { type: 'string' } },
+                    includeProducts: { type: 'array', items: { type: 'string' } },
+                    excludeProducts: { type: 'array', items: { type: 'string' } },
+                    perUserLimit: { type: 'integer', minimum: 0 },
+                    globalLimit: { type: 'integer', minimum: 0 }
+                  }
+                }
+              }
+            }
+          },
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         },
         delete: {
@@ -1036,7 +1085,31 @@ export function buildOpenApiSpec() {
           summary: 'Update location',
           security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } },
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'string' },
+                    description: { type: 'string' },
+                    type: { type: 'string', enum: ['percent', 'fixed'] },
+                    value: { type: 'number' },
+                    minSubtotal: { type: 'number' },
+                    expiresAt: { type: 'string', format: 'date-time' },
+                    isActive: { type: 'boolean' },
+                    includeCategories: { type: 'array', items: { type: 'string' } },
+                    excludeCategories: { type: 'array', items: { type: 'string' } },
+                    includeProducts: { type: 'array', items: { type: 'string' } },
+                    excludeProducts: { type: 'array', items: { type: 'string' } },
+                    perUserLimit: { type: 'integer', minimum: 0 },
+                    globalLimit: { type: 'integer', minimum: 0 }
+                  }
+                }
+              }
+            }
+          },
           responses: { '200': { description: 'OK' } }
         },
         delete: {
@@ -1382,3 +1455,5 @@ export function buildOpenApiSpec() {
     }
   };
 }
+
+

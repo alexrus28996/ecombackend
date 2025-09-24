@@ -22,7 +22,23 @@ export const returnApproveSchema = {
   }).optional()
 };
 
-export const couponSchema = { body: z.object({ code: z.string().min(2), description: z.string().optional(), type: z.enum(['percent', 'fixed']), value: z.coerce.number().nonnegative(), minSubtotal: z.coerce.number().nonnegative().optional(), expiresAt: z.string().datetime().optional(), isActive: z.coerce.boolean().optional() }) };
+export const couponSchema = {
+  body: z.object({
+    code: z.string().min(2),
+    description: z.string().optional(),
+    type: z.enum(['percent', 'fixed']),
+    value: z.coerce.number().nonnegative(),
+    minSubtotal: z.coerce.number().nonnegative().optional(),
+    expiresAt: z.string().datetime().optional(),
+    isActive: z.coerce.boolean().optional(),
+    includeCategories: z.array(z.string().min(1)).optional(),
+    excludeCategories: z.array(z.string().min(1)).optional(),
+    includeProducts: z.array(z.string().min(1)).optional(),
+    excludeProducts: z.array(z.string().min(1)).optional(),
+    perUserLimit: z.coerce.number().int().min(0).optional(),
+    globalLimit: z.coerce.number().int().min(0).optional()
+  })
+};
 
 export const adjustSchema = {
   body: z.object({
@@ -68,3 +84,5 @@ export const variantsMatrixSchema = { body: z.object({
   options: z.record(z.array(z.string().min(1)).min(1)),
   base: z.object({ price: z.coerce.number().nonnegative().optional(), skuPrefix: z.string().optional() }).optional()
 }) };
+
+

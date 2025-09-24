@@ -2322,10 +2322,43 @@
                     "type": "number"
                   },
                   "expiresAt": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time"
                   },
                   "isActive": {
                     "type": "boolean"
+                  },
+                  "includeCategories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "excludeCategories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "includeProducts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "excludeProducts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "perUserLimit": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "globalLimit": {
+                    "type": "integer",
+                    "minimum": 0
                   }
                 },
                 "required": [
@@ -2393,7 +2426,67 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "percent",
+                      "fixed"
+                    ]
+                  },
+                  "value": {
+                    "type": "number"
+                  },
+                  "minSubtotal": {
+                    "type": "number"
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "includeCategories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "excludeCategories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "includeProducts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "excludeProducts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "perUserLimit": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "globalLimit": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
               }
             }
           }

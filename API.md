@@ -28,6 +28,45 @@ All responses follow this format:
 
 ---
 
+## Health Endpoint
+
+### GET `/health`
+Service health check and readiness probe.
+- **Auth**: Not required
+
+**Response (200):**
+```json
+{
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
+}
+```
+---
+
 ## Authentication Endpoints (`/api/auth`)
 
 ### POST `/api/auth/register`
@@ -36,54 +75,96 @@ Create a new user account
 **Request Body:**
 ```json
 {
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "password123"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "user": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
     "isActive": true,
-    "isVerified": false,
-    "roles": ["customer"],
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
     "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### POST `/api/auth/login`
 Authenticate user and get JWT tokens
 
 **Request Body:**
 ```json
 {
-  "email": "john@example.com",
-  "password": "password123"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "refresh_token_string",
-  "user": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "isActive": true,
-    "isVerified": true,
-    "roles": ["customer"]
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### GET `/api/auth/me`
 Get current user profile
 - **Auth**: Required
@@ -91,93 +172,242 @@ Get current user profile
 **Response (200):**
 ```json
 {
-  "user": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "isActive": true,
-    "isVerified": true,
-    "roles": ["customer"]
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/auth/refresh`
 Refresh access token using refresh token
 
 **Request Body:**
 ```json
 {
-  "refreshToken": "refresh_token_string"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "token": "new_access_token",
-  "refreshToken": "new_refresh_token",
-  "user": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/auth/logout`
 Revoke refresh token (logout)
 
 **Request Body:**
 ```json
 {
-  "refreshToken": "refresh_token_string"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "success": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/auth/password/forgot`
 Request password reset email
 
 **Request Body:**
 ```json
 {
-  "email": "john@example.com",
-  "baseUrl": "https://yourapp.com" // optional
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "success": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/auth/password/reset`
 Reset password using token from email
 
 **Request Body:**
 ```json
 {
-  "token": "reset_token_from_email",
-  "password": "newpassword123"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "success": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### PATCH `/api/auth/profile`
 Update user profile
 - **Auth**: Required
@@ -185,21 +415,52 @@ Update user profile
 **Request Body:**
 ```json
 {
-  "name": "John Smith"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "user": {
-    "_id": "user_id",
-    "name": "John Smith",
-    "email": "john@example.com"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/auth/password/change`
 Change user password
 - **Auth**: Required
@@ -207,18 +468,52 @@ Change user password
 **Request Body:**
 ```json
 {
-  "currentPassword": "oldpassword123",
-  "newPassword": "newpassword123"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "success": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/auth/email/verify/request`
 Request email verification
 - **Auth**: Required
@@ -226,34 +521,104 @@ Request email verification
 **Request Body:**
 ```json
 {
-  "baseUrl": "https://yourapp.com" // optional
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "success": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/auth/email/verify`
 Verify email with token
 
 **Request Body:**
 ```json
 {
-  "token": "verification_token_from_email"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "success": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/auth/email/change/request`
 Request email change
 - **Auth**: Required
@@ -261,18 +626,52 @@ Request email change
 **Request Body:**
 ```json
 {
-  "newEmail": "newemail@example.com",
-  "baseUrl": "https://yourapp.com" // optional
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "success": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### GET `/api/auth/preferences`
 Get user preferences
 - **Auth**: Required
@@ -280,17 +679,34 @@ Get user preferences
 **Response (200):**
 ```json
 {
-  "preferences": {
-    "locale": "en",
-    "notifications": {
-      "email": true,
-      "sms": false,
-      "push": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
     }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### PATCH `/api/auth/preferences`
 Update user preferences
 - **Auth**: Required
@@ -298,29 +714,52 @@ Update user preferences
 **Request Body:**
 ```json
 {
-  "locale": "es",
-  "notifications": {
-    "email": false,
-    "sms": true,
-    "push": true
-  }
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "preferences": {
-    "locale": "es",
-    "notifications": {
-      "email": false,
-      "sms": true,
-      "push": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
     }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ---
 
 ## Product Endpoints (`/api/products`)
@@ -340,86 +779,68 @@ List products with filtering and pagination
 **Response (200):**
 ```json
 {
-  "data": [
+  "coupons": [
     {
-      "_id": "product_id",
-      "name": "Product Name",
-      "description": "Product description",
-      "price": 29.99,
-      "currency": "USD",
-      "images": [
-        {
-          "url": "https://example.com/image1.jpg",
-          "alt": "Product image"
-        }
-      ],
-      "category": "category_id",
-      "brand": "brand_id",
-      "attributes": {
-        "color": ["red", "blue"],
-        "size": ["S", "M", "L"]
-      },
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
       "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
       "createdAt": "2023-01-01T00:00:00.000Z"
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 20,
-    "total": 100,
-    "pages": 5
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### GET `/api/products/:id`
 Get product details by ID
 
 **Response (200):**
 ```json
 {
-  "product": {
-    "_id": "product_id",
-    "name": "Product Name",
-    "description": "Detailed product description",
-    "price": 29.99,
-    "currency": "USD",
-    "images": [
-      {
-        "url": "https://example.com/image1.jpg",
-        "alt": "Product image"
-      }
-    ],
-    "category": {
-      "_id": "category_id",
-      "name": "Category Name"
-    },
-    "brand": {
-      "_id": "brand_id",
-      "name": "Brand Name"
-    },
-    "attributes": {
-      "color": ["red", "blue"],
-      "size": ["S", "M", "L"]
-    },
-    "variants": [
-      {
-        "_id": "variant_id",
-        "attributes": {
-          "color": "red",
-          "size": "M"
-        },
-        "price": 29.99,
-        "sku": "PROD-RED-M",
-        "isActive": true
-      }
-    ],
-    "isActive": true,
-    "createdAt": "2023-01-01T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/products`
 Create new product
 - **Auth**: Required
@@ -428,53 +849,44 @@ Create new product
 **Request Body:**
 ```json
 {
-  "name": "New Product",
-  "description": "Product description",
-  "price": 29.99,
-  "currency": "USD",
-  "category": "category_id",
-  "brandId": "brand_id",
-  "images": [
-    {
-      "url": "https://example.com/image1.jpg",
-      "alt": "Product image"
-    }
-  ],
-  "attributes": {
-    "color": ["red", "blue"],
-    "size": ["S", "M", "L"]
-  },
-  "isActive": true
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "product": {
-    "_id": "new_product_id",
-    "name": "New Product",
-    "description": "Product description",
-    "price": 29.99,
-    "currency": "USD",
-    "category": "category_id",
-    "brandId": "brand_id",
-    "images": [
-      {
-        "url": "https://example.com/image1.jpg",
-        "alt": "Product image"
-      }
-    ],
-    "attributes": {
-      "color": ["red", "blue"],
-      "size": ["S", "M", "L"]
-    },
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
     "isActive": true,
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
     "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### PATCH `/api/products/:id`
 Update product
 - **Auth**: Required
@@ -492,16 +904,34 @@ Update product
 **Response (200):**
 ```json
 {
-  "product": {
-    "_id": "product_id",
-    "name": "Updated Product Name",
-    "price": 39.99,
-    "isActive": false,
-    "updatedAt": "2023-01-02T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### DELETE `/api/products/:id`
 Delete product
 - **Auth**: Required
@@ -510,11 +940,34 @@ Delete product
 **Response (200):**
 ```json
 {
-  "success": true,
-  "message": "Product deleted successfully"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ---
 
 ## Category Endpoints (`/api/categories`)
@@ -530,65 +983,68 @@ List all categories
 **Response (200):**
 ```json
 {
-  "categories": [
+  "coupons": [
     {
-      "_id": "category_id",
-      "name": "Electronics",
-      "slug": "electronics",
-      "description": "Electronic devices and accessories",
-      "parent": null,
-      "level": 0,
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
       "isActive": true,
-      "children": [
-        {
-          "_id": "subcategory_id",
-          "name": "Smartphones",
-          "slug": "smartphones",
-          "parent": "category_id",
-          "level": 1,
-          "isActive": true
-        }
-      ],
-      "productCount": 245,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
       "createdAt": "2023-01-01T00:00:00.000Z"
     }
-  ]
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### GET `/api/categories/:id`
 Get category details
 
 **Response (200):**
 ```json
 {
-  "category": {
-    "_id": "category_id",
-    "name": "Electronics",
-    "slug": "electronics",
-    "description": "Electronic devices and accessories",
-    "parent": null,
-    "level": 0,
-    "isActive": true,
-    "children": [
-      {
-        "_id": "subcategory_id",
-        "name": "Smartphones",
-        "slug": "smartphones",
-        "parent": "category_id",
-        "level": 1,
-        "isActive": true,
-        "productCount": 45
-      }
-    ],
-    "productCount": 245,
-    "path": ["Electronics"],
-    "createdAt": "2023-01-01T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/categories`
 Create new category
 - **Auth**: Required
@@ -597,30 +1053,44 @@ Create new category
 **Request Body:**
 ```json
 {
-  "name": "Gaming",
-  "slug": "gaming",
-  "description": "Gaming devices and accessories",
-  "parent": "category_id",
-  "isActive": true
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "category": {
-    "_id": "new_category_id",
-    "name": "Gaming",
-    "slug": "gaming",
-    "description": "Gaming devices and accessories",
-    "parent": "category_id",
-    "level": 1,
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
     "isActive": true,
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
     "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### PATCH `/api/categories/:id`
 Update category
 - **Auth**: Required
@@ -629,28 +1099,52 @@ Update category
 **Request Body:**
 ```json
 {
-  "name": "Gaming & Entertainment",
-  "description": "Gaming devices, entertainment systems and accessories",
-  "isActive": false
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "category": {
-    "_id": "category_id",
-    "name": "Gaming & Entertainment",
-    "slug": "gaming",
-    "description": "Gaming devices, entertainment systems and accessories",
-    "parent": "category_id",
-    "level": 1,
-    "isActive": false,
-    "updatedAt": "2023-01-02T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### DELETE `/api/categories/:id`
 Delete category
 - **Auth**: Required
@@ -659,11 +1153,34 @@ Delete category
 **Response (200):**
 ```json
 {
-  "success": true,
-  "message": "Category deleted successfully"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ---
 
 ## Brand Endpoints (`/api/brands`)
@@ -680,46 +1197,68 @@ List all brands
 **Response (200):**
 ```json
 {
-  "brands": [
+  "coupons": [
     {
-      "_id": "brand_id",
-      "name": "Nike",
-      "slug": "nike",
-      "description": "Just Do It",
-      "logo": "https://example.com/nike-logo.png",
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
       "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
       "createdAt": "2023-01-01T00:00:00.000Z"
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 20,
-    "total": 50,
-    "pages": 3
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### GET `/api/brands/:id`
 Get brand details
 
 **Response (200):**
 ```json
 {
-  "brand": {
-    "_id": "brand_id",
-    "name": "Nike",
-    "slug": "nike",
-    "description": "Just Do It - Athletic apparel and footwear",
-    "logo": "https://example.com/nike-logo.png",
-    "isActive": true,
-    "productCount": 145,
-    "createdAt": "2023-01-01T00:00:00.000Z",
-    "updatedAt": "2023-01-15T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/brands`
 Create new brand
 - **Auth**: Required
@@ -728,29 +1267,44 @@ Create new brand
 **Request Body:**
 ```json
 {
-  "name": "Adidas",
-  "slug": "adidas",
-  "description": "Impossible is Nothing",
-  "logo": "https://example.com/adidas-logo.png",
-  "isActive": true
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "brand": {
-    "_id": "new_brand_id",
-    "name": "Adidas",
-    "slug": "adidas",
-    "description": "Impossible is Nothing",
-    "logo": "https://example.com/adidas-logo.png",
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
     "isActive": true,
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
     "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### PUT `/api/brands/:id`
 Update brand
 - **Auth**: Required
@@ -759,27 +1313,52 @@ Update brand
 **Request Body:**
 ```json
 {
-  "name": "Adidas Updated",
-  "description": "Impossible is Nothing - Updated description",
-  "isActive": false
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "brand": {
-    "_id": "brand_id",
-    "name": "Adidas Updated",
-    "slug": "adidas",
-    "description": "Impossible is Nothing - Updated description",
-    "logo": "https://example.com/adidas-logo.png",
-    "isActive": false,
-    "updatedAt": "2023-01-02T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### DELETE `/api/brands/:id`
 Delete brand
 - **Auth**: Required
@@ -788,11 +1367,34 @@ Delete brand
 **Response (200):**
 ```json
 {
-  "success": true,
-  "message": "Brand deleted successfully"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ---
 
 ## Cart Endpoints (`/api/cart`)
@@ -806,41 +1408,34 @@ Get current user's cart
 **Response (200):**
 ```json
 {
-  "cart": {
-    "_id": "cart_id",
-    "user": "user_id",
-    "items": [
-      {
-        "product": {
-          "_id": "product_id",
-          "name": "Product Name",
-          "price": 29.99
-        },
-        "variant": {
-          "_id": "variant_id",
-          "attributes": {
-            "color": "red",
-            "size": "M"
-          }
-        },
-        "quantity": 2,
-        "price": 29.99,
-        "total": 59.98
-      }
-    ],
-    "subtotal": 59.98,
-    "discount": 5.00,
-    "coupon": {
+  "coupons": [
+    {
+      "_id": "coupon_id",
       "code": "SAVE10",
-      "type": "fixed",
-      "value": 5.00
-    },
-    "currency": "USD",
-    "updatedAt": "2023-01-01T00:00:00.000Z"
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/cart/items`
 Add item to cart
 - **Auth**: Required
@@ -848,42 +1443,44 @@ Add item to cart
 **Request Body:**
 ```json
 {
-  "productId": "product_id",
-  "variantId": "variant_id", // optional
-  "quantity": 2
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "cart": {
-    "_id": "cart_id",
-    "items": [
-      {
-        "product": {
-          "_id": "product_id",
-          "name": "Product Name",
-          "price": 29.99
-        },
-        "variant": {
-          "_id": "variant_id",
-          "attributes": {
-            "color": "red",
-            "size": "M"
-          }
-        },
-        "quantity": 2,
-        "price": 29.99,
-        "total": 59.98
-      }
-    ],
-    "subtotal": 59.98,
-    "currency": "USD"
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
+    "isActive": true,
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
+    "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### PATCH `/api/cart/items/:productId`
 Update item quantity in cart
 - **Auth**: Required
@@ -891,33 +1488,52 @@ Update item quantity in cart
 **Request Body:**
 ```json
 {
-  "quantity": 3,
-  "variantId": "variant_id" // optional
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "cart": {
-    "_id": "cart_id",
-    "items": [
-      {
-        "product": {
-          "_id": "product_id",
-          "name": "Product Name",
-          "price": 29.99
-        },
-        "quantity": 3,
-        "total": 89.97
-      }
-    ],
-    "subtotal": 89.97,
-    "currency": "USD"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### DELETE `/api/cart/items/:productId`
 Remove item from cart
 - **Auth**: Required
@@ -926,15 +1542,34 @@ Remove item from cart
 **Response (200):**
 ```json
 {
-  "cart": {
-    "_id": "cart_id",
-    "items": [],
-    "subtotal": 0,
-    "currency": "USD"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/cart/clear`
 Clear all items from cart
 - **Auth**: Required
@@ -942,15 +1577,34 @@ Clear all items from cart
 **Response (200):**
 ```json
 {
-  "cart": {
-    "_id": "cart_id",
-    "items": [],
-    "subtotal": 0,
-    "currency": "USD"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/cart/coupon`
 Apply coupon to cart
 - **Auth**: Required
@@ -958,37 +1612,52 @@ Apply coupon to cart
 **Request Body:**
 ```json
 {
-  "code": "SAVE10"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "cart": {
-    "_id": "cart_id",
-    "items": [
-      {
-        "product": {
-          "_id": "product_id",
-          "name": "Product Name"
-        },
-        "quantity": 2,
-        "total": 59.98
-      }
-    ],
-    "subtotal": 59.98,
-    "discount": 10.00,
-    "coupon": {
+  "coupons": [
+    {
+      "_id": "coupon_id",
       "code": "SAVE10",
+      "description": "10% off your order",
       "type": "percent",
-      "value": 0.1
-    },
-    "currency": "USD"
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### DELETE `/api/cart/coupon`
 Remove coupon from cart
 - **Auth**: Required
@@ -996,50 +1665,89 @@ Remove coupon from cart
 **Response (200):**
 ```json
 {
-  "cart": {
-    "_id": "cart_id",
-    "items": [
-      {
-        "product": {
-          "_id": "product_id",
-          "name": "Product Name"
-        },
-        "quantity": 2,
-        "total": 59.98
-      }
-    ],
-    "subtotal": 59.98,
-    "discount": 0,
-    "coupon": null,
-    "currency": "USD"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/cart/estimate`
-Estimate shipping and tax
+Estimate shipping and tax for the active cart using pricing rules, with optional overrides.
 - **Auth**: Required
 
 **Request Body:**
 ```json
 {
-  "shipping": 9.99, // optional
-  "taxRate": 0.08 // optional (0-1)
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
+> If `shipping` or `taxRate` are omitted the service derives them from the configured pricing calculators using the cart subtotal.
 
 **Response (200):**
 ```json
 {
-  "subtotal": 59.98,
-  "discount": 5.00,
-  "shipping": 9.99,
-  "tax": 4.80,
-  "total": 69.77,
-  "currency": "USD"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ---
 
 ## Order Endpoints (`/api/orders`)
@@ -1053,85 +1761,44 @@ Create order from current cart
 **Request Body:**
 ```json
 {
-  "shippingAddress": {
-    "fullName": "John Doe",
-    "line1": "123 Main St",
-    "line2": "Apt 4B",
-    "city": "New York",
-    "state": "NY",
-    "postalCode": "10001",
-    "country": "US",
-    "phone": "+1-555-123-4567"
-  },
-  "billingAddress": {
-    "fullName": "John Doe",
-    "line1": "123 Main St",
-    "city": "New York",
-    "state": "NY",
-    "postalCode": "10001",
-    "country": "US"
-  },
-  "shipping": 9.99,
-  "taxRate": 0.08
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "order": {
-    "_id": "order_id",
-    "orderNumber": "ORD-2023-001",
-    "user": "user_id",
-    "items": [
-      {
-        "product": {
-          "_id": "product_id",
-          "name": "Product Name"
-        },
-        "variant": {
-          "_id": "variant_id",
-          "attributes": {
-            "color": "red",
-            "size": "M"
-          }
-        },
-        "quantity": 2,
-        "price": 29.99,
-        "total": 59.98
-      }
-    ],
-    "subtotal": 59.98,
-    "discount": 5.00,
-    "shipping": 9.99,
-    "tax": 4.80,
-    "total": 69.77,
-    "currency": "USD",
-    "status": "pending",
-    "paymentStatus": "unpaid",
-    "shippingAddress": {
-      "fullName": "John Doe",
-      "line1": "123 Main St",
-      "line2": "Apt 4B",
-      "city": "New York",
-      "state": "NY",
-      "postalCode": "10001",
-      "country": "US",
-      "phone": "+1-555-123-4567"
-    },
-    "billingAddress": {
-      "fullName": "John Doe",
-      "line1": "123 Main St",
-      "city": "New York",
-      "state": "NY",
-      "postalCode": "10001",
-      "country": "US"
-    },
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
+    "isActive": true,
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
     "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### GET `/api/orders`
 List current user's orders
 - **Auth**: Required
@@ -1140,27 +1807,34 @@ List current user's orders
 **Response (200):**
 ```json
 {
-  "data": [
+  "coupons": [
     {
-      "_id": "order_id",
-      "orderNumber": "ORD-2023-001",
-      "total": 69.77,
-      "currency": "USD",
-      "status": "shipped",
-      "paymentStatus": "paid",
-      "createdAt": "2023-01-01T00:00:00.000Z",
-      "itemsCount": 2
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 20,
-    "total": 5,
-    "pages": 1
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### GET `/api/orders/:id`
 Get order details
 - **Auth**: Required
@@ -1168,62 +1842,34 @@ Get order details
 **Response (200):**
 ```json
 {
-  "order": {
-    "_id": "order_id",
-    "orderNumber": "ORD-2023-001",
-    "user": "user_id",
-    "items": [
-      {
-        "product": {
-          "_id": "product_id",
-          "name": "Product Name",
-          "images": [
-            {
-              "url": "https://example.com/image1.jpg",
-              "alt": "Product image"
-            }
-          ]
-        },
-        "variant": {
-          "_id": "variant_id",
-          "attributes": {
-            "color": "red",
-            "size": "M"
-          }
-        },
-        "quantity": 2,
-        "price": 29.99,
-        "total": 59.98
-      }
-    ],
-    "subtotal": 59.98,
-    "discount": 5.00,
-    "shipping": 9.99,
-    "tax": 4.80,
-    "total": 69.77,
-    "currency": "USD",
-    "status": "shipped",
-    "paymentStatus": "paid",
-    "shippingAddress": {
-      "fullName": "John Doe",
-      "line1": "123 Main St",
-      "line2": "Apt 4B",
-      "city": "New York",
-      "state": "NY",
-      "postalCode": "10001",
-      "country": "US",
-      "phone": "+1-555-123-4567"
-    },
-    "tracking": {
-      "carrier": "UPS",
-      "trackingNumber": "1Z999AA1234567890"
-    },
-    "createdAt": "2023-01-01T00:00:00.000Z",
-    "updatedAt": "2023-01-02T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### GET `/api/orders/:id/invoice`
 Download order invoice (PDF)
 - **Auth**: Required
@@ -1239,32 +1885,34 @@ Get order timeline/status history
 **Response (200):**
 ```json
 {
-  "data": [
+  "coupons": [
     {
-      "_id": "timeline_id",
-      "type": "status_change",
-      "message": "Order shipped",
-      "status": "shipped",
-      "userId": "admin_user_id",
-      "createdAt": "2023-01-02T00:00:00.000Z"
-    },
-    {
-      "_id": "timeline_id_2",
-      "type": "payment_received",
-      "message": "Payment received",
-      "paymentStatus": "paid",
-      "createdAt": "2023-01-01T12:00:00.000Z"
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 20,
-    "total": 5,
-    "pages": 1
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/orders/:id/returns`
 Request return/refund for order
 - **Auth**: Required
@@ -1272,24 +1920,44 @@ Request return/refund for order
 **Request Body:**
 ```json
 {
-  "reason": "Product damaged" // optional
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "return": {
-    "_id": "return_id",
-    "order": "order_id",
-    "user": "user_id",
-    "reason": "Product damaged",
-    "status": "requested",
-    "createdAt": "2023-01-03T00:00:00.000Z"
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
+    "isActive": true,
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
+    "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### PATCH `/api/orders/:id/status`
 Update order status (Admin)
 - **Auth**: Required
@@ -1298,24 +1966,52 @@ Update order status (Admin)
 **Request Body:**
 ```json
 {
-  "status": "shipped", // pending, paid, shipped, delivered, cancelled, refunded
-  "paymentStatus": "paid" // unpaid, paid, refunded
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "order": {
-    "_id": "order_id",
-    "orderNumber": "ORD-2023-001",
-    "status": "shipped",
-    "paymentStatus": "paid",
-    "updatedAt": "2023-01-02T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ---
 
 ## Product Reviews (`/api/products/:productId/reviews`)
@@ -1326,17 +2022,23 @@ Get approved reviews for a product
 **Response (200):**
 ```json
 {
-  "reviews": [
+  "coupons": [
     {
-      "_id": "review_id",
-      "user": {
-        "_id": "user_id",
-        "name": "John Doe"
-      },
-      "product": "product_id",
-      "rating": 5,
-      "comment": "Great product! Highly recommended.",
-      "status": "approved",
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
       "createdAt": "2023-01-01T00:00:00.000Z"
     }
   ],
@@ -1345,12 +2047,9 @@ Get approved reviews for a product
     "limit": 20,
     "total": 25,
     "pages": 2
-  },
-  "averageRating": 4.2,
-  "totalReviews": 25
+  }
 }
 ```
-
 ### POST `/api/products/:productId/reviews`
 Create or update user's review
 - **Auth**: Required
@@ -1358,26 +2057,44 @@ Create or update user's review
 **Request Body:**
 ```json
 {
-  "rating": 5,
-  "comment": "Great product! Highly recommended."
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "review": {
-    "_id": "review_id",
-    "user": "user_id",
-    "product": "product_id",
-    "rating": 5,
-    "comment": "Great product! Highly recommended.",
-    "status": "pending",
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
+    "isActive": true,
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
     "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### DELETE `/api/products/:productId/reviews/:reviewId`
 Delete review (author or admin)
 - **Auth**: Required
@@ -1385,11 +2102,34 @@ Delete review (author or admin)
 **Response (200):**
 ```json
 {
-  "success": true,
-  "message": "Review deleted successfully"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/products/:productId/reviews/:reviewId/approve`
 Approve review (Admin)
 - **Auth**: Required
@@ -1398,14 +2138,34 @@ Approve review (Admin)
 **Response (200):**
 ```json
 {
-  "review": {
-    "_id": "review_id",
-    "status": "approved",
-    "updatedAt": "2023-01-01T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/products/:productId/reviews/:reviewId/hide`
 Hide review (Admin)
 - **Auth**: Required
@@ -1414,14 +2174,34 @@ Hide review (Admin)
 **Response (200):**
 ```json
 {
-  "review": {
-    "_id": "review_id",
-    "status": "hidden",
-    "updatedAt": "2023-01-01T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ---
 
 ## Address Management (`/api/addresses`)
@@ -1435,26 +2215,34 @@ List user's addresses
 **Response (200):**
 ```json
 {
-  "addresses": [
+  "coupons": [
     {
-      "_id": "address_id",
-      "type": "shipping",
-      "fullName": "John Doe",
-      "line1": "123 Main St",
-      "line2": "Apt 4B",
-      "city": "New York",
-      "state": "NY",
-      "postalCode": "10001",
-      "country": "US",
-      "phone": "+1-555-123-4567",
-      "label": "Home",
-      "isDefault": true,
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
       "createdAt": "2023-01-01T00:00:00.000Z"
     }
-  ]
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/addresses`
 Create new address
 - **Auth**: Required
@@ -1462,41 +2250,44 @@ Create new address
 **Request Body:**
 ```json
 {
-  "type": "shipping",
-  "fullName": "John Doe",
-  "line1": "123 Main St",
-  "line2": "Apt 4B",
-  "city": "New York",
-  "state": "NY",
-  "postalCode": "10001",
-  "country": "US",
-  "phone": "+1-555-123-4567",
-  "label": "Home",
-  "isDefault": false
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
-  "address": {
-    "_id": "new_address_id",
-    "type": "shipping",
-    "fullName": "John Doe",
-    "line1": "123 Main St",
-    "line2": "Apt 4B",
-    "city": "New York",
-    "state": "NY",
-    "postalCode": "10001",
-    "country": "US",
-    "phone": "+1-555-123-4567",
-    "label": "Home",
-    "isDefault": false,
+  "coupon": {
+    "_id": "new_coupon_id",
+    "code": "NEWUSER15",
+    "description": "15% off for new users",
+    "type": "percent",
+    "value": 0.15,
+    "minSubtotal": 25.00,
+    "usageCount": 0,
+    "isActive": true,
+    "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
     "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 ### GET `/api/addresses/:id`
 Get address details
 - **Auth**: Required
@@ -1504,24 +2295,34 @@ Get address details
 **Response (200):**
 ```json
 {
-  "address": {
-    "_id": "address_id",
-    "type": "shipping",
-    "fullName": "John Doe",
-    "line1": "123 Main St",
-    "line2": "Apt 4B",
-    "city": "New York",
-    "state": "NY",
-    "postalCode": "10001",
-    "country": "US",
-    "phone": "+1-555-123-4567",
-    "label": "Home",
-    "isDefault": true,
-    "createdAt": "2023-01-01T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### PUT `/api/addresses/:id`
 Update address
 - **Auth**: Required
@@ -1529,33 +2330,52 @@ Update address
 **Request Body:**
 ```json
 {
-  "line1": "456 Oak Avenue",
-  "line2": "Suite 200",
-  "label": "Office"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "address": {
-    "_id": "address_id",
-    "type": "shipping",
-    "fullName": "John Doe",
-    "line1": "456 Oak Avenue",
-    "line2": "Suite 200",
-    "city": "New York",
-    "state": "NY",
-    "postalCode": "10001",
-    "country": "US",
-    "phone": "+1-555-123-4567",
-    "label": "Office",
-    "isDefault": true,
-    "updatedAt": "2023-01-01T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### DELETE `/api/addresses/:id`
 Delete address
 - **Auth**: Required
@@ -1563,11 +2383,34 @@ Delete address
 **Response (200):**
 ```json
 {
-  "success": true,
-  "message": "Address deleted successfully"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/addresses/:id/default`
 Set address as default
 - **Auth**: Required
@@ -1575,14 +2418,34 @@ Set address as default
 **Response (200):**
 ```json
 {
-  "address": {
-    "_id": "address_id",
-    "isDefault": true,
-    "updatedAt": "2023-01-01T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ---
 
 ## Payment Endpoints (`/api/payments`)
@@ -1594,28 +2457,52 @@ Create Stripe payment intent
 **Request Body:**
 ```json
 {
-  "orderId": "order_id"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "paymentIntent": {
-    "id": "pi_1234567890",
-    "client_secret": "pi_1234567890_secret_abcdef",
-    "amount": 6977,
-    "currency": "usd",
-    "status": "requires_payment_method"
-  },
-  "order": {
-    "_id": "order_id",
-    "total": 69.77,
-    "currency": "USD"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/payments/stripe/webhook`
 Stripe webhook handler
 - **Content-Type**: `application/json` (raw body)
@@ -1624,27 +2511,52 @@ Stripe webhook handler
 **Request Body:**
 ```json
 {
-  "id": "evt_1234567890",
-  "object": "event",
-  "type": "payment_intent.succeeded",
-  "data": {
-    "object": {
-      "id": "pi_1234567890",
-      "amount": 6977,
-      "currency": "usd",
-      "status": "succeeded"
-    }
-  }
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "received": true
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ---
 
 ## File Upload (`/api/uploads`)
@@ -1667,13 +2579,34 @@ Max size: 5MB
 **Response (200):**
 ```json
 {
-  "url": "/uploads/images/1234567890-image.jpg",
-  "filename": "1234567890-image.jpg",
-  "size": 1024576,
-  "mimetype": "image/jpeg"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/uploads/cloudinary`
 Upload image to Cloudinary
 - **Auth**: Required
@@ -1690,16 +2623,34 @@ Max size: 5MB
 **Response (200):**
 ```json
 {
-  "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/products/abc123.jpg",
-  "public_id": "products/abc123",
-  "secure_url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/products/abc123.jpg",
-  "width": 1024,
-  "height": 768,
-  "format": "jpg",
-  "bytes": 1024576
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ### POST `/api/uploads/cloudinary/delete`
 Delete image from Cloudinary
 - **Auth**: Required
@@ -1708,18 +2659,52 @@ Delete image from Cloudinary
 **Request Body:**
 ```json
 {
-  "publicId": "products/abc123"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "success": true,
-  "result": "ok"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
 }
 ```
-
 ---
 
 ## Inventory Management (`/api/inventory`)
@@ -1732,47 +2717,52 @@ Bulk update inventory levels
 **Request Body:**
 ```json
 {
-  "updates": [
-    {
-      "productId": "product_id_1",
-      "variantId": "variant_id_1",
-      "stockChange": 50,
-      "reason": "restock"
-    },
-    {
-      "productId": "product_id_2",
-      "stockChange": -10,
-      "reason": "damage"
-    }
-  ]
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "results": [
+  "coupons": [
     {
-      "productId": "product_id_1",
-      "success": true,
-      "newStock": 75,
-      "previousStock": 25
-    },
-    {
-      "productId": "product_id_2",
-      "success": true,
-      "newStock": 40,
-      "previousStock": 50
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
     }
   ],
-  "summary": {
-    "total": 2,
-    "successful": 2,
-    "failed": 0
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### PATCH `/api/inventory/:id`
 Update single product inventory
 - **Auth**: Required
@@ -1781,26 +2771,52 @@ Update single product inventory
 **Request Body:**
 ```json
 {
-  "stockChange": 25,
-  "reason": "restock",
-  "note": "Received new shipment"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "inventory": {
-    "productId": "product_id",
-    "stock": 50,
-    "previousStock": 25,
-    "reserved": 5,
-    "available": 45,
-    "lastUpdated": "2023-01-01T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### GET `/api/inventory/locations`
 List warehouse locations
 - **Auth**: Required
@@ -1848,34 +2864,34 @@ Query stock levels
 **Response (200):**
 ```json
 {
-  "stock": [
+  "coupons": [
     {
-      "productId": "product_id",
-      "productName": "Product Name",
-      "variantId": "variant_id",
-      "variantAttributes": {
-        "color": "red",
-        "size": "M"
-      },
-      "locationId": "location_id",
-      "locationName": "Main Warehouse",
-      "quantity": 45,
-      "reserved": 5,
-      "available": 40,
-      "lowStockThreshold": 10,
-      "isLowStock": false,
-      "lastUpdated": "2023-01-01T00:00:00.000Z"
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
     }
   ],
   "pagination": {
     "page": 1,
-    "limit": 50,
-    "total": 1250,
-    "pages": 25
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/inventory/stock/adjust`
 Adjust stock levels
 - **Auth**: Required
@@ -1884,38 +2900,52 @@ Adjust stock levels
 **Request Body:**
 ```json
 {
-  "productId": "product_id",
-  "variantId": "variant_id",
-  "locationId": "location_id",
-  "qtyChange": -5,
-  "reservedChange": 0,
-  "reason": "damage",
-  "note": "Items damaged during handling",
-  "refId": "DAMAGE-001"
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "adjustment": {
-    "_id": "adjustment_id",
-    "productId": "product_id",
-    "variantId": "variant_id",
-    "locationId": "location_id",
-    "qtyChange": -5,
-    "reservedChange": 0,
-    "reason": "damage",
-    "note": "Items damaged during handling",
-    "refId": "DAMAGE-001",
-    "previousQty": 50,
-    "newQty": 45,
-    "createdBy": "user_id",
-    "createdAt": "2023-01-01T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 ### POST `/api/inventory/stock/reconcile`
 Reconcile stock levels
 - **Auth**: Required
@@ -1989,27 +3019,34 @@ List all users
 **Response (200):**
 ```json
 {
-  "users": [
+  "coupons": [
     {
-      "_id": "user_id",
-      "name": "John Doe",
-      "email": "john@example.com",
-      "roles": ["customer"],
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
       "isActive": true,
-      "isVerified": true,
-      "lastLoginAt": "2023-01-15T10:30:00.000Z",
+      "expiresAt": "2023-12-31T23:59:59.000Z",
       "createdAt": "2023-01-01T00:00:00.000Z"
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 20,
-    "total": 1500,
-    "pages": 75
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 #### GET `/api/admin/users/:id`
 Get user details
 - **Auth**: Required
@@ -2018,30 +3055,34 @@ Get user details
 **Response (200):**
 ```json
 {
-  "user": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "roles": ["customer"],
-    "isActive": true,
-    "isVerified": true,
-    "preferences": {
-      "locale": "en",
-      "notifications": {
-        "email": true,
-        "sms": false,
-        "push": true
-      }
-    },
-    "orderCount": 12,
-    "totalSpent": 1249.99,
-    "lastLoginAt": "2023-01-15T10:30:00.000Z",
-    "createdAt": "2023-01-01T00:00:00.000Z",
-    "updatedAt": "2023-01-15T10:30:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 #### PATCH `/api/admin/users/:id`
 Update user
 - **Auth**: Required
@@ -2050,23 +3091,52 @@ Update user
 **Request Body:**
 ```json
 {
-  "isActive": false
+  "code": "NEWUSER15",
+  "description": "15% off for new users",
+  "type": "percent",
+  "value": 0.15,
+  "minSubtotal": 25.00,
+  "expiresAt": "2023-12-31T23:59:59.000Z",
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (200):**
 ```json
 {
-  "user": {
-    "_id": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "isActive": false,
-    "updatedAt": "2023-01-16T00:00:00.000Z"
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
-
 #### POST `/api/admin/users/:id/promote`
 Promote user role
 - **Auth**: Required
@@ -2089,36 +3159,35 @@ Get system metrics
 **Response (200):**
 ```json
 {
-  "metrics": {
-    "users": {
-      "total": 1500,
-      "active": 1425,
-      "newThisMonth": 85
-    },
-    "orders": {
-      "total": 3250,
-      "thisMonth": 245,
-      "pending": 12,
-      "shipped": 180,
-      "delivered": 53
-    },
-    "revenue": {
-      "total": 125000.50,
-      "thisMonth": 12500.25,
-      "lastMonth": 11800.00
-    },
-    "products": {
-      "total": 850,
-      "active": 820,
-      "lowStock": 15
-    },
-    "inventory": {
-      "totalValue": 85000.00,
-      "adjustmentsThisMonth": 25
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
     }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
   }
 }
 ```
+`ordersByStatus` uses order status values as keys. `revenueLast7Days` returns at most seven day buckets sorted chronologically with revenue and order counts.
 
 #### GET `/api/admin/reports/sales`
 Sales report
@@ -2183,6 +3252,12 @@ List coupons
       "type": "percent",
       "value": 0.1,
       "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
       "usageCount": 145,
       "isActive": true,
       "expiresAt": "2023-12-31T23:59:59.000Z",
@@ -2197,7 +3272,6 @@ List coupons
   }
 }
 ```
-
 #### POST `/api/admin/coupons`
 Create coupon
 - **Auth**: Required
@@ -2212,10 +3286,15 @@ Create coupon
   "value": 0.15,
   "minSubtotal": 25.00,
   "expiresAt": "2023-12-31T23:59:59.000Z",
-  "isActive": true
+  "isActive": true,
+  "includeCategories": ["64fa90e2c9a0770012af0001"],
+  "excludeCategories": [],
+  "includeProducts": ["64fa90e2c9a0770012af0002"],
+  "excludeProducts": [],
+  "perUserLimit": 1,
+  "globalLimit": 250
 }
 ```
-
 **Response (201):**
 ```json
 {
@@ -2229,11 +3308,16 @@ Create coupon
     "usageCount": 0,
     "isActive": true,
     "expiresAt": "2023-12-31T23:59:59.000Z",
+    "includeCategories": ["64fa90e2c9a0770012af0001"],
+    "excludeCategories": [],
+    "includeProducts": ["64fa90e2c9a0770012af0002"],
+    "excludeProducts": [],
+    "perUserLimit": 1,
+    "globalLimit": 250,
     "createdAt": "2023-01-01T00:00:00.000Z"
   }
 }
 ```
-
 #### GET `/api/admin/coupons/:id`
 Get coupon details
 - **Auth**: Required
@@ -2292,9 +3376,56 @@ List return requests
 Approve return request
 - **Auth**: Required
 - **Role**: ADMIN
-- **Body**: Approval details
-- **Response**: Approved return
 
+**Request Body (optional):**
+```json
+{
+  "locationId": "default_location_id",
+  "items": [
+    {
+      "product": "64f0c7d3d2c7c2a1e3f45678",
+      "variant": "64f0c7d3d2c7c2a1e3f45679",
+      "quantity": 1,
+      "locationId": "warehouse-east"
+    }
+  ],
+  "amount": 59.99
+}
+```
+
+> Provide `items` to perform a partial return/refund. When omitted the entire order is refunded. `locationId` on the body acts as a fallback restock location for any items without their own `locationId`.
+
+**Response (200):**
+```json
+{
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
+}
+```
 #### POST `/api/admin/returns/:id/reject`
 Reject return request
 - **Auth**: Required
@@ -2491,15 +3622,88 @@ Get brand references
 List inventory reservations
 - **Auth**: Required
 - **Role**: ADMIN
-- **Response**: Reservation list
+- **Query Parameters:**
+  - `orderId`: Filter by order
+  - `productId`: Filter by product
+  - `status`: Filter by reservation status (`active`, `released`, `converted`, `expired`)
+  - `page`: Page number (default: 1)
+  - `limit`: Page size (default: 20)
 
+**Response (200):**
+```json
+{
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
+}
+```
 ### POST `/api/admin/reservations/:orderId/release`
 Release reservations for order
 - **Auth**: Required
 - **Role**: ADMIN
-- **Body**: Release details
-- **Response**: Release confirmation
 
+**Request Body (optional):**
+```json
+{
+  "reason": "cancelled",
+  "notes": "manual:admin_id"
+}
+```
+
+**Response (200):**
+```json
+{
+  "coupons": [
+    {
+      "_id": "coupon_id",
+      "code": "SAVE10",
+      "description": "10% off your order",
+      "type": "percent",
+      "value": 0.1,
+      "minSubtotal": 50.00,
+      "includeCategories": ["64fa90e2c9a0770012af0001"],
+      "excludeCategories": [],
+      "includeProducts": [],
+      "excludeProducts": ["64fa90e2c9a0770012af0003"],
+      "perUserLimit": 1,
+      "globalLimit": 500,
+      "usageCount": 145,
+      "isActive": true,
+      "expiresAt": "2023-12-31T23:59:59.000Z",
+      "createdAt": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 25,
+    "pages": 2
+  }
+}
+```
 ---
 
 ## Error Response Format
@@ -2550,3 +3754,5 @@ Response includes pagination metadata:
   }
 }
 ```
+
+

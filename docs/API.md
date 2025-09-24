@@ -81,6 +81,9 @@ Once authenticated, customers manipulate their cart and create orders. These are
 | `PATCH` | `/api/cart/items/:productId` | `{ "variantId?", "quantity" }` | `{ "cart": { ... } }`
 | `DELETE` | `/api/cart/items/:productId` | Query `variantId?` | `{ "cart": { ... } }`
 | `POST` | `/api/cart/clear` | — | `{ "cart": { items: [], subtotal: 0, total: 0 } }`
+| `POST` | `/api/cart/estimate` | `{ "items?": [CartItemInput], "destination?": { "country": "ISO2", "state?", "postalCode?" }, "shippingOptionId?", "currency?" }` | `{ "estimation": { subtotal, discounts, shipping, tax, duties?, total, currency, taxRegion: { country, label } } }`
+
+Defaults to India (`destination.country = "IN"`, `currency = "INR"`) when omitted so carts surface predictable taxes immediately. Update this section as new regional tax engines are enabled.
 
 **Orders**
 

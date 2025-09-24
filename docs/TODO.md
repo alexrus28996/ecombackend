@@ -82,17 +82,17 @@ Inventory & Warehousing
 
 Cart & Checkout
 - [x] P0 Cart items carry variantId; validate availability per variant
-- [ ] P1 Shipping/tax estimation endpoint for cart
+- [x] P1 Shipping/tax estimation endpoint for cart
 
 Orders, Payments, Fulfillment
 - [x] P0 Add `PaymentTransaction` model (orderId, provider, status, amounts, providerRef)
 - [x] P0 Add `Refund` model; admin returns approval records refundId; store amounts
 - [x] P0 Add `Shipment` model (orderId, address snapshot, carrier, tracking) + `ShipmentItem`
 - [x] P0 Order items include variantId and variant-level price; persist couponCode, tax/shipping breakdown
-- [ ] P1 Admin: partial refunds/returns at line-item level
+- [x] P1 Admin: partial refunds/returns at line-item level
 
 Promotions
-- [ ] P1 Coupon targeting (include/exclude categories/products); usage limits per user/global
+- [x] P1 Coupon targeting (include/exclude categories/products); usage limits per user/global
 
 Reviews
 - [x] P2 Verified purchase flag (tie review to order item)
@@ -165,7 +165,7 @@ Data Governance & Security
 
 Reliability & Ops
 - [x] P1 Idempotency for write endpoints (orders, returns, payments); retry-safe processing
-- [ ] P1 Observability: request metrics, error rates, background job health endpoints
+- [x] P1 Observability: request metrics, error rates, background job health endpoints
 - [ ] P2 Fine-grained rate limits per route group and user role
 
 Auth Module
@@ -207,13 +207,13 @@ Inventory Module
 - [x] P1 Separate Inventory model (per-SKU stock)
 - [x] P1 Stock adjustments with movement log (reason, qty, user, timestamp)
 - [x] P2 Warehouses/locations; low-stock alerts
- - [ ] P1 Stock reservations/allocations on order placement; release on cancel/expiry
+- [x] P1 Stock reservations/allocations on order placement; release on cancel/expiry
 - [x] P1 Ensure adjustStock participates in order DB transaction/session (atomicity)
 
 Cart Module
 - [x] P2 Coupons/discount codes integration
 - [x] P2 Shipping/tax calculators (configurable rules)
- - [ ] P2 Shipping/tax estimation preview on cart (pre-checkout)
+- [x] P2 Shipping/tax estimation preview on cart (pre-checkout)
 
 
 Orders Module
@@ -223,7 +223,7 @@ Orders Module
 - [x] P2 Order timeline/audit trail entries
  - [x] P1 Capture variant on order items; persist price snapshot per variant
  - [x] P1 Billing address support; store couponCode and tax/shipping breakdowns
- - [ ] P2 Partial refunds/returns (line-level quantities)
+- [x] P2 Partial refunds/returns (line-level quantities)
  - [ ] P2 Persist refund references/ids per payment provider
 
 
@@ -280,7 +280,7 @@ Tests
 Security & Observability
 - [x] P1 CSP/Helmet tuning, CORS per environment
 - [x] P1 Rate limit tuning per route group (auth vs general)
-- [ ] P1 Structured logs to files or transport; log rotation
+- [x] P1 Structured logs to files or transport; log rotation
 - [ ] P2 ELK/Grafana integration; health metrics endpoint
 
 Hardening / Follow-ups
@@ -298,3 +298,4 @@ Users Module (Enhancements)
 Notes
 - Current implemented scope: Auth (basic), Users (model), Products (CRUD), Categories, Cart, Orders (basic), Admin (promote/demote), Swagger + API docs.
 - This file tracks missing features only; see `docs/API.md` and Swagger for implemented endpoints.
+
