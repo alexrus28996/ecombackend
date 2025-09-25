@@ -573,8 +573,7 @@ export async function exportProductsController(req, res) {
       const row = [
         p.name,
         p.slug || '',
-        (p.description || '').replace(/
-|\r|,/g, ' '),
+        (p.description || '').replace(/\n|\r|,/g, ' '),
         String(p.price ?? ''),
         p.currency || '',
         String(p.isActive ?? ''),
@@ -585,8 +584,7 @@ export async function exportProductsController(req, res) {
       ].map((v) => `"${String(v).replace(/"/g, '""')}"`);
       lines.push(row.join(','));
     }
-    const csv = lines.join('
-');
+    const csv = lines.join('\n');
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="products.csv"');
     return res.send(csv);

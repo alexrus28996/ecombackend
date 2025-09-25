@@ -3337,6 +3337,69 @@ Delete coupon
 - **Role**: ADMIN
 - **Response**: Success confirmation
 
+### Currency Rates
+
+#### GET `/api/admin/currency-rates`
+List currency exchange rates
+- **Auth**: Required
+- **Role**: ADMIN
+
+**Query Parameters:**
+- `baseCurrency`: Optional ISO code (defaults to configured base)
+
+**Response (200):**
+```json
+{
+  "baseCurrency": "USD",
+  "rates": [
+    {
+      "_id": "rate_id",
+      "baseCurrency": "USD",
+      "currency": "EUR",
+      "rate": 0.92,
+      "source": "manual",
+      "createdAt": "2024-09-20T10:15:00.000Z",
+      "updatedAt": "2024-09-22T07:45:00.000Z"
+    }
+  ]
+}
+```
+
+#### POST `/api/admin/currency-rates`
+Create or update a currency rate
+- **Auth**: Required
+- **Role**: ADMIN
+
+**Request Body:**
+```json
+{
+  "currency": "EUR",
+  "rate": 0.92,
+  "baseCurrency": "USD",
+  "source": "manual"
+}
+```
+
+**Response (201):**
+```json
+{
+  "rate": {
+    "_id": "rate_id",
+    "baseCurrency": "USD",
+    "currency": "EUR",
+    "rate": 0.92,
+    "source": "manual",
+    "createdAt": "2024-09-20T10:15:00.000Z",
+    "updatedAt": "2024-09-22T07:45:00.000Z"
+  }
+}
+```
+
+#### DELETE `/api/admin/currency-rates/:currency`
+Remove a configured rate
+- **Auth**: Required
+- **Role**: ADMIN
+- **Response**: `{ "success": true }`
 ### Inventory Management
 
 #### GET `/api/admin/inventory`
@@ -3754,5 +3817,6 @@ Response includes pagination metadata:
   }
 }
 ```
+
 
 

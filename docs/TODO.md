@@ -108,7 +108,7 @@ APIs & Docs
 - [x] P1 Products indexes added: category, slug(unique), text(name,description)
 
 Pricing & Currency
-- [ ] P1 Multi-currency pricing with FX rate table and rounding rules
+- [x] P1 Multi-currency pricing with FX rate table and rounding rules
 - [ ] P1 Regional price lists (price books) and customer-specific price overrides
 - [ ] P1 Tax-inclusive vs tax-exclusive pricing modes per region
 - [ ] P2 Tiered/volume pricing and time-bound price overrides (sales)
@@ -298,4 +298,5 @@ Users Module (Enhancements)
 Notes
 - Current implemented scope: Auth (basic), Users (model), Products (CRUD), Categories, Cart, Orders (basic), Admin (promote/demote), Swagger + API docs.
 - This file tracks missing features only; see `docs/API.md` and Swagger for implemented endpoints.
+
 

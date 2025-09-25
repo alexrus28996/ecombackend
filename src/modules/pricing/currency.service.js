@@ -15,23 +15,25 @@ function getBaseCurrency(baseCurrency) {
   return normalizeCurrency(baseCurrency || config.FX_BASE_CURRENCY || config.DEFAULT_CURRENCY);
 }
 
-function getRoundingMode() {
-  const mode = (config.FX_ROUNDING_MODE || '').toUpperCase();
-  if (ROUNDING_MODES.includes(mode)) return mode;
-  return 'HALF_UP';
+function resolveRoundingSettings(override) {
+  const rawMode = override?.mode ? String(override.mode).toUpperCase() : String(config.FX_ROUNDING_MODE || '').toUpperCase();
+  const mode = ROUNDING_MODES.includes(rawMode) ? rawMode : 'HALF_UP';
+  const rawIncrement = override?.increment ?? config.FX_ROUNDING_INCREMENT ?? 0.01;
+  const numericIncrement = Number(rawIncrement);
+  const increment = Number.isFinite(numericIncrement) && numericIncrement > 0 ? numericIncrement : 0.01;
+  return { mode, increment };
 }
 
-function getIncrement() {
-  const raw = Number(config.FX_ROUNDING_INCREMENT || 0.01);
-  if (!Number.isFinite(raw) || raw <= 0) return 0.01;
-  return raw;
+function roundAmount(amount, rounding) {
+  if (rounding === false) return amount;
+  if (typeof rounding === 'object' && rounding !== null) return applyRounding(amount, rounding);
+  return applyRounding(amount);
 }
 
-function applyRounding(amount) {
-  const increment = getIncrement();
+function applyRounding(amount, override) {
+  const { mode, increment } = resolveRoundingSettings(override);
   const factor = 1 / increment;
   const scaled = amount * factor;
-  const mode = getRoundingMode();
   if (mode === 'UP') return Math.ceil(scaled) / factor;
   if (mode === 'DOWN') return Math.floor(scaled) / factor;
   return Math.round((scaled + Number.EPSILON)) / factor;
@@ -96,7 +98,7 @@ export async function convertAmount(amount, { fromCurrency, toCurrency, baseCurr
   }
   const from = normalizeCurrency(fromCurrency || baseCurrency || config.DEFAULT_CURRENCY);
   const to = normalizeCurrency(toCurrency || config.DEFAULT_CURRENCY);
-  if (from === to) return rounding ? applyRounding(numericAmount) : numericAmount;
+  if (from === to) return roundAmount(numericAmount, rounding);
   const { base, map } = await loadRateMap(baseCurrency);
   const fromRate = from === base ? 1 : map.get(from);
   const toRate = to === base ? 1 : map.get(to);
@@ -104,7 +106,7 @@ export async function convertAmount(amount, { fromCurrency, toCurrency, baseCurr
   if (!toRate) throw errors.badRequest(ERROR_CODES.FX_RATE_NOT_FOUND, { currency: to });
   const baseAmount = from === base ? numericAmount : numericAmount / fromRate;
   const converted = to === base ? baseAmount : baseAmount * toRate;
-  return rounding ? applyRounding(converted) : converted;
+  return roundAmount(converted, rounding);
 }
 
 export async function getRate(currency, baseCurrency) {
@@ -115,3 +117,8 @@ export async function getRate(currency, baseCurrency) {
   if (!doc) throw errors.badRequest(ERROR_CODES.FX_RATE_NOT_FOUND, { currency: target });
   return doc;
 }
+
+
+
+
+

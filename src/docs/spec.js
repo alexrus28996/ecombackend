@@ -998,6 +998,49 @@ export function buildOpenApiSpec() {
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
         }
       },
+      [`${api}/admin/currency-rates`]: {
+        get: {
+          summary: 'List currency rates (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'baseCurrency', in: 'query', schema: { type: 'string' } }
+          ],
+          responses: { '200': { description: 'OK' } }
+        },
+        post: {
+          summary: 'Upsert currency rate (admin)',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    baseCurrency: { type: 'string' },
+                    currency: { type: 'string' },
+                    rate: { type: 'number' },
+                    source: { type: 'string' }
+                  },
+                  required: ['currency', 'rate']
+                }
+              }
+            }
+          },
+          responses: { '201': { description: 'Created' } }
+        }
+      },
+      [`${api}/admin/currency-rates/{currency}`]: {
+        delete: {
+          summary: 'Delete currency rate (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'currency', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'baseCurrency', in: 'query', schema: { type: 'string' } }
+          ],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
       [`${api}/admin/inventory/adjustments`]: {
         get: {
           summary: 'List inventory adjustments (admin)',
