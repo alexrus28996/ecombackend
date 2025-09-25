@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { validate } from '../../../middleware/validate.js';
-import { authRequired, requireRole } from '../../../middleware/auth.js';
-import { ROLES } from '../../../config/constants.js';
+import { authRequired } from '../../../middleware/auth.js';
+import checkPermission from '../../../middleware/checkPermission.js';
+import { PERMISSIONS } from '../../../utils/permissions.js';
 import {
   listCategories as listCategoriesController,
   createCategory as createCategoryController,
@@ -22,16 +23,16 @@ router.get('/', listCategoriesController);
 router.get('/:id', getCategoryController);
 
 // Admin create category
-router.post('/', authRequired, requireRole(ROLES.ADMIN), validate(categorySchema), createCategoryController);
+router.post('/', authRequired, checkPermission(PERMISSIONS.CATEGORY_CREATE), validate(categorySchema), createCategoryController);
 
 // Admin update category
-router.put('/:id', authRequired, requireRole(ROLES.ADMIN), validate(categorySchema), updateCategoryController);
+router.put('/:id', authRequired, checkPermission(PERMISSIONS.CATEGORY_EDIT), validate(categorySchema), updateCategoryController);
 
 // List children of a category
 router.get('/:id/children', listChildrenController);
 
 // Reorder children for a category: set sortOrder based on provided IDs order
-router.post('/:id/reorder', authRequired, requireRole(ROLES.ADMIN), validate(reorderSchema), reorderChildrenController);
+router.post('/:id/reorder', authRequired, checkPermission(PERMISSIONS.CATEGORY_EDIT), validate(reorderSchema), reorderChildrenController);
 
 // Admin delete category
-router.delete('/:id', authRequired, requireRole(ROLES.ADMIN), deleteCategoryController);
+router.delete('/:id', authRequired, checkPermission(PERMISSIONS.CATEGORY_DELETE), deleteCategoryController);

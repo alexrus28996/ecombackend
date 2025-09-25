@@ -24,9 +24,10 @@ import {
   generateProductVariantsMatrix,
   getProductVariant
 } from '../controllers/product-variants.controller.js';
-import { authRequired, requireRole } from '../../../middleware/auth.js';
+import { authRequired } from '../../../middleware/auth.js';
 import { validate } from '../../../middleware/validate.js';
-import { ROLES } from '../../../config/constants.js';
+import checkPermission from '../../../middleware/checkPermission.js';
+import { PERMISSIONS } from '../../../utils/permissions.js';
 import { productCreateSchema, productUpdateSchema } from '../validation/products.validation.js';
 import {
   attributeCreateSchema,
@@ -54,21 +55,21 @@ router.get('/:productId/attributes', listProductAttributes);
 router.post(
   '/:productId/attributes',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   validate(attributeCreateSchema),
   createProductAttribute
 );
 router.put(
   '/:productId/attributes/:attributeId',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   validate(attributeUpdateSchema),
   updateProductAttribute
 );
 router.delete(
   '/:productId/attributes/:attributeId',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   deleteProductAttribute
 );
 
@@ -77,21 +78,21 @@ router.get('/:productId/attributes/:attributeId/options', listAttributeOptions);
 router.post(
   '/:productId/attributes/:attributeId/options',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   validate(optionCreateSchema),
   createAttributeOption
 );
 router.put(
   '/:productId/attributes/:attributeId/options/:optionId',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   validate(optionUpdateSchema),
   updateAttributeOption
 );
 router.delete(
   '/:productId/attributes/:attributeId/options/:optionId',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   deleteAttributeOption
 );
 
@@ -101,37 +102,37 @@ router.get('/:productId/variants/:variantId', getProductVariant);
 router.post(
   '/:productId/variants',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   validate(variantCreateSchema),
   createProductVariant
 );
 router.put(
   '/:productId/variants/:variantId',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   validate(variantUpdateSchema),
   updateProductVariant
 );
 router.delete(
   '/:productId/variants/:variantId',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   deleteProductVariant
 );
 router.post(
   '/:productId/variants-matrix',
   authRequired,
-  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
   validate(variantMatrixSchema),
   generateProductVariantsMatrix
 );
 
 // Create a product (admin)
-router.post('/', authRequired, requireRole(ROLES.ADMIN), validate(productCreateSchema), createProductController);
+router.post('/', authRequired, checkPermission(PERMISSIONS.PRODUCT_CREATE), validate(productCreateSchema), createProductController);
 
 // Update a product (admin)
-router.put('/:id', authRequired, requireRole(ROLES.ADMIN), validate(productUpdateSchema), updateProductController);
-router.patch('/:id', authRequired, requireRole(ROLES.ADMIN), validate(productUpdateSchema), updateProductController);
+router.put('/:id', authRequired, checkPermission(PERMISSIONS.PRODUCT_EDIT), validate(productUpdateSchema), updateProductController);
+router.patch('/:id', authRequired, checkPermission(PERMISSIONS.PRODUCT_EDIT), validate(productUpdateSchema), updateProductController);
 
 // Delete a product (admin)
-router.delete('/:id', authRequired, requireRole(ROLES.ADMIN), deleteProductController);
+router.delete('/:id', authRequired, checkPermission(PERMISSIONS.PRODUCT_DELETE), deleteProductController);
