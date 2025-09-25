@@ -46,6 +46,14 @@ import {
   productReferencesController,
   brandReferencesController
 } from '../controllers/admin.controller.js';
+import {
+  listProducts as listProductsController,
+  getProduct as getProductController,
+  createProduct as createProductController,
+  updateProduct as updateProductController,
+  deleteProduct as deleteProductController
+} from '../controllers/products.controller.js';
+import { productCreateSchema, productUpdateSchema } from '../validation/products.validation.js';
 import { idParam, updateUserSchema, updateOrderSchema, couponSchema, adjustSchema, importSchema, priceBulkSchema, categoryBulkSchema, shipmentCreateSchema, variantsMatrixSchema, returnApproveSchema, currencyRateListSchema, currencyRateSchema, currencyRateDeleteSchema } from '../validation/admin.validation.js';
 import { idempotency } from '../../../middleware/idempotency.js';
 import {
@@ -112,6 +120,14 @@ router.get('/shipments', authRequired, requireRole(ROLES.ADMIN), listShipmentsCo
 router.post('/orders/:id/shipments', authRequired, requireRole(ROLES.ADMIN), validate(shipmentCreateSchema), createShipmentController);
 router.get('/shipments/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getShipmentController);
 router.get('/orders/:id/shipments', authRequired, requireRole(ROLES.ADMIN), validate(idParam), listOrderShipmentsController);
+
+// Products CRUD
+router.get('/products', authRequired, requireRole(ROLES.ADMIN), listProductsController);
+router.get('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getProductController);
+router.post('/products', authRequired, requireRole(ROLES.ADMIN), validate(productCreateSchema), createProductController);
+router.put('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate({ ...idParam, ...productUpdateSchema }), updateProductController);
+router.patch('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate({ ...idParam, ...productUpdateSchema }), updateProductController);
+router.delete('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), deleteProductController);
 
 // Products admin helpers
 router.post('/products/import', authRequired, requireRole(ROLES.ADMIN), validate(importSchema), importProductsController);
