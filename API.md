@@ -305,6 +305,11 @@ All routes below require an authenticated user with the `ADMIN` role.
 - `GET /api/admin/orders/:id/shipments` → `{ items, total, page, pages }`.
 
 ### Product Operations
+- `GET /api/admin/products` -> Paginated admin catalog search. Response `{ items, total, page, pages }`.
+- `GET /api/admin/products/:id` -> `{ product }`.
+- `POST /api/admin/products` -> Body `ProductInput`. Response `201 { product }`.
+- `PUT /api/admin/products/:id` (also `PATCH`) -> Body `Partial<ProductInput>`. Response `{ product }`.
+- `DELETE /api/admin/products/:id` -> `{ success: true }`.
 - `POST /api/admin/products/import` → Body `{ items: ProductInput[] }`. Response `201 { inserted, failed, errors: [{ name, message }] }`.
 - `GET /api/admin/products/export` → Download all products (`format=json|csv`).
 - `POST /api/admin/products/price-bulk` → Body `{ factorPercent, filter?: { q?, category? } }`. Response `{ matched, modified, factor }`.
