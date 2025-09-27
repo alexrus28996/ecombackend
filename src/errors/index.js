@@ -32,5 +32,6 @@ export const errors = Object.freeze({
   notFound: (code, params, details) => makeError(404, code, params, details),
   conflict: (code, params, details) => makeError(409, code, params, details),
   unprocessable: (code, params, details) => makeError(422, code, params, details),
+  serviceUnavailable: (code, params, details) => makeError(503, code, params, details),
   internal: (code, params, details) => makeError(500, code, params, details)
 });

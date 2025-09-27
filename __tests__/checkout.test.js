@@ -8,10 +8,11 @@ import { Cart } from '../src/modules/cart/cart.model.js';
 import { Order } from '../src/modules/orders/order.model.js';
 import { addItem } from '../src/modules/cart/cart.service.js';
 import { Address } from '../src/modules/users/address.model.js';
-import { createOrderFromCart } from '../src/modules/orders/order.service.js';
+import { createOrderFromCart, listOrders as listOrdersService, getOrder as getOrderService } from '../src/modules/orders/order.service.js';
 import { ERROR_CODES } from '../src/errors/codes.js';
 import { Reservation } from '../src/modules/inventory/reservation.model.js';
 import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
+import { ORDER_STATUS, PAYMENT_STATUS } from '../src/config/constants.js';
 
 jest.setTimeout(30000);
 
@@ -22,6 +23,7 @@ describe('Cart -> Order flow (integration)', () => {
   let location;
   let digitalProduct;
   let shouldSkip = false;
+  let lastOrderId;
 
   beforeAll(async () => {
     const { skip } = await connectOrSkip();
@@ -52,6 +54,7 @@ describe('Cart -> Order flow (integration)', () => {
     expect(cart.items.length).toBe(1);
 
     const order = await createOrderFromCart(userId, {});
+    lastOrderId = order._id;
     expect(order.items.length).toBe(1);
     expect(order.items[0].quantity).toBe(2);
     expect(order.subtotal).toBe(40);
@@ -63,6 +66,8 @@ describe('Cart -> Order flow (integration)', () => {
     expect(order.invoiceUrl).toMatch(/\/uploads\/invoices\/invoice-/);
     expect(order.shippingAddress?.line1).toBe('S1');
     expect(order.billingAddress?.line1).toBe('B1');
+    expect(order.status).toBe(ORDER_STATUS.PENDING);
+    expect(order.paymentStatus).toBe(PAYMENT_STATUS.UNPAID);
 
     const inv = await StockItem.findOne({ productId: product._id, variantId: null, locationId: location._id });
     expect(inv.onHand).toBe(3);
@@ -73,7 +78,17 @@ describe('Cart -> Order flow (integration)', () => {
 
     const savedOrder = await Order.findById(order._id);
     expect(savedOrder).toBeTruthy();
-});
+  });
+
+  test('list and fetch orders for the user', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    expect(lastOrderId).toBeTruthy();
+    const list = await listOrdersService(userId, { page: 1, limit: 10 });
+    expect(list.total).toBeGreaterThanOrEqual(1);
+    expect(list.items.some((item) => String(item._id) === String(lastOrderId))).toBe(true);
+    const fetched = await getOrderService(userId, lastOrderId);
+    expect(String(fetched._id)).toBe(String(lastOrderId));
+  });
 
   test('checkout succeeds for non-shipping products without inventory', async () => {
     if (skipIfNeeded(shouldSkip)) return;

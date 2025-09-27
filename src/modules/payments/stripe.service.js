@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import mongoose from 'mongoose';
 import { config } from '../../config/index.js';
 import { PAYMENT_METHOD } from '../../config/constants.js';
 import { Order } from '../orders/order.model.js';
@@ -8,7 +9,7 @@ import { addTimeline } from '../orders/timeline.service.js';
 import { t } from '../../i18n/index.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
 import { convertReservationsToStock } from '../inventory/reservation.service.js';
-import mongoose from 'mongoose';
+import { ORDER_STATUS, PAYMENT_STATUS } from '../../config/constants.js';
 import { getLogger } from '../../logger.js';
 
 const stripe = config.STRIPE_SECRET_KEY ? new Stripe(config.STRIPE_SECRET_KEY) : null;
@@ -21,8 +22,13 @@ function toMinorUnits(amount, currency) {
   return zeroDecimal.includes(curr) ? Math.round(amount) : Math.round(amount * 100);
 }
 
+function isTransactionUnsupported(err) {
+  const msg = String(err?.message || '');
+  return msg.includes('Transaction numbers are only allowed') || err?.codeName === 'IllegalOperation';
+}
+
 export async function createPaymentIntentForOrder(orderId, userId) {
-  if (!stripe) throw errors.internal('PAYMENTS_DISABLED');
+  if (!stripe) throw errors.serviceUnavailable(ERROR_CODES.PAYMENTS_NOT_CONFIGURED);
   const order = await Order.findOne({ _id: orderId, user: userId });
   if (!order) throw errors.notFound(ERROR_CODES.ORDER_NOT_FOUND);
   if (order.paymentMethod === PAYMENT_METHOD.COD) {
@@ -44,7 +50,7 @@ export async function createPaymentIntentForOrder(orderId, userId) {
 }
 
 export function constructStripeEvent(rawBody, signature) {
-  if (!stripe) throw errors.internal('PAYMENTS_DISABLED');
+  if (!stripe) throw errors.serviceUnavailable(ERROR_CODES.PAYMENTS_NOT_CONFIGURED);
   const secret = config.STRIPE_WEBHOOK_SECRET;
   if (!secret) throw errors.internal('WEBHOOK_SECRET_MISSING');
   return stripe.webhooks.constructEvent(rawBody, signature, secret);
@@ -67,8 +73,8 @@ export async function applyPaymentIntentSucceeded(pi) {
       await session.withTransaction(async () => {
         order = await Order.findById(orderId).session(session);
         if (!order) return;
-        order.paymentStatus = 'paid';
-        order.status = 'paid';
+        order.paymentStatus = PAYMENT_STATUS.PAID;
+        order.status = ORDER_STATUS.PAID;
         order.paidAt = new Date();
         order.paymentProvider = 'stripe';
         order.transactionId = pi.id;
@@ -87,8 +93,7 @@ export async function applyPaymentIntentSucceeded(pi) {
         ], { session });
       });
     } catch (e) {
-      const msg = String(e && e.message || '');
-      if (msg.includes('Transaction numbers are only allowed') || e?.codeName === 'IllegalOperation') {
+      if (isTransactionUnsupported(e)) {
         fallback = true;
       } else {
         throw e;
@@ -103,8 +108,8 @@ export async function applyPaymentIntentSucceeded(pi) {
   if (fallback) {
     order = await Order.findById(orderId);
     if (!order) return;
-    order.paymentStatus = 'paid';
-    order.status = 'paid';
+    order.paymentStatus = PAYMENT_STATUS.PAID;
+    order.status = ORDER_STATUS.PAID;
     order.paidAt = new Date();
     order.paymentProvider = 'stripe';
     order.transactionId = pi.id;

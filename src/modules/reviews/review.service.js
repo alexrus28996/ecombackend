@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Review } from './review.model.js';
 import { Product } from '../catalog/product.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
@@ -57,12 +58,24 @@ export async function moderateReview(reviewId, { approve }) {
 }
 
 export async function recomputeProductRating(productId) {
+  const asObjectId = (value) => {
+    if (value instanceof mongoose.Types.ObjectId) return value;
+    if (mongoose.Types.ObjectId.isValid(value)) return new mongoose.Types.ObjectId(value);
+    return null;
+  };
+
+  const objectId = asObjectId(productId);
+  if (!objectId) {
+    logger.warn({ productId }, 'skipping rating recompute for invalid product id');
+    return;
+  }
+
   const agg = await Review.aggregate([
-    { $match: { product: Product.castObjectId(productId) ?? productId, isApproved: true } },
+    { $match: { product: objectId, isApproved: true } },
     { $group: { _id: '$product', count: { $sum: 1 }, avg: { $avg: '$rating' } } }
   ]);
   const stats = agg[0];
   const count = stats ? stats.count : 0;
   const avg = stats ? Math.round(stats.avg * 10) / 10 : 0;
-  await Product.findByIdAndUpdate(productId, { ratingCount: count, ratingAvg: avg });
+  await Product.findByIdAndUpdate(objectId, { ratingCount: count, ratingAvg: avg });
 }

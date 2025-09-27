@@ -2,7 +2,7 @@ import { User } from '../../../modules/users/user.model.js';
 import { Product } from '../../../modules/catalog/product.model.js';
 import { t } from '../../../i18n/index.js';
 import { Order } from '../../../modules/orders/order.model.js';
-import { ROLES, ORDER_STATUS } from '../../../config/constants.js';
+import { ROLES, ORDER_STATUS, PAYMENT_STATUS } from '../../../config/constants.js';
 import { config } from '../../../config/index.js';
 import { createCoupon, listCoupons, getCoupon, updateCoupon, deleteCoupon } from '../../../modules/coupons/coupon.service.js';
 import { listRates as listCurrencyRates, upsertRate as upsertCurrencyRate, removeRate as removeCurrencyRate } from '../../../modules/pricing/currency.service.js';
@@ -15,6 +15,21 @@ import { addTimeline } from '../../../modules/orders/timeline.service.js';
 import { PaymentTransaction } from '../../../modules/payments/payment-transaction.model.js';
 import { Refund } from '../../../modules/payments/refund.model.js';
 import { Shipment } from '../../../modules/orders/shipment.model.js';
+import { errors, ERROR_CODES } from '../../../errors/index.js';
+
+const allowedOrderTransitions = Object.freeze({
+  [ORDER_STATUS.PENDING]: [ORDER_STATUS.PAID, ORDER_STATUS.SHIPPED, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.PAID]: [ORDER_STATUS.SHIPPED, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED],
+  [ORDER_STATUS.DELIVERED]: [],
+  [ORDER_STATUS.CANCELLED]: [],
+  [ORDER_STATUS.REFUNDED]: []
+});
+
+async function assertOrdersInitialized() {
+  const exists = await Order.exists({});
+  if (!exists) throw errors.serviceUnavailable(ERROR_CODES.ORDERS_NOT_INITIALIZED);
+}
 
 export async function listUsers(req, res) {
   const { q } = req.query;
@@ -129,6 +144,10 @@ export async function updateOrder(req, res) {
   if (!ord) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
   const { status, paymentStatus } = req.validated.body;
   if (status && status !== ord.status) {
+    const allowed = allowedOrderTransitions[ord.status] || [];
+    if (!allowed.includes(status)) {
+      throw errors.badRequest(ERROR_CODES.VALIDATION_ERROR, null, { from: ord.status, to: status, message: 'Invalid status transition' });
+    }
     await addTimeline(ord._id, { type: 'status_updated', message: `Status: ${ord.status} -> ${status}`, userId: req.user.sub, from: ord.status, to: status });
     ord.status = status;
     if (status === ORDER_STATUS.CANCELLED) {
@@ -137,7 +156,14 @@ export async function updateOrder(req, res) {
   }
   if (paymentStatus && paymentStatus !== ord.paymentStatus) {
     await addTimeline(ord._id, { type: 'payment_updated', message: `Payment: ${ord.paymentStatus} -> ${paymentStatus}`, userId: req.user.sub, from: ord.paymentStatus, to: paymentStatus });
+    const previous = ord.paymentStatus;
     ord.paymentStatus = paymentStatus;
+    if (paymentStatus === PAYMENT_STATUS.PAID && !ord.paidAt) {
+      ord.paidAt = new Date();
+    }
+    if (paymentStatus !== PAYMENT_STATUS.PAID && previous === PAYMENT_STATUS.PAID) {
+      ord.paidAt = paymentStatus === PAYMENT_STATUS.UNPAID ? undefined : ord.paidAt;
+    }
   }
   await ord.save();
   res.json({ order: ord });
@@ -397,6 +423,7 @@ export async function rejectReturnController(req, res) {
 
 // Payments: Transactions
 export async function listTransactionsController(req, res) {
+  await assertOrdersInitialized();
   const { order, provider, status, page = 1, limit = 20 } = req.query;
   const filter = {};
   if (order) filter.order = order;
@@ -413,6 +440,7 @@ export async function listTransactionsController(req, res) {
 }
 
 export async function getTransactionController(req, res) {
+  await assertOrdersInitialized();
   const item = await PaymentTransaction.findById(req.params.id);
   if (!item) return res.status(404).json({ error: { message: 'Transaction not found' } });
   res.json({ transaction: item });
@@ -420,6 +448,7 @@ export async function getTransactionController(req, res) {
 
 // Payments: Refunds
 export async function listRefundsAdminController(req, res) {
+  await assertOrdersInitialized();
   const { order, provider, status, page = 1, limit = 20 } = req.query;
   const filter = {};
   if (order) filter.order = order;
@@ -436,6 +465,7 @@ export async function listRefundsAdminController(req, res) {
 }
 
 export async function getRefundAdminController(req, res) {
+  await assertOrdersInitialized();
   const item = await Refund.findById(req.params.id);
   if (!item) return res.status(404).json({ error: { message: 'Refund not found' } });
   res.json({ refund: item });
@@ -443,6 +473,7 @@ export async function getRefundAdminController(req, res) {
 
 // Fulfillment: Shipments
 export async function listShipmentsController(req, res) {
+  await assertOrdersInitialized();
   const { order, page = 1, limit = 20 } = req.query;
   const filter = {};
   if (order) filter.order = order;
@@ -457,6 +488,7 @@ export async function listShipmentsController(req, res) {
 }
 
 export async function createShipmentController(req, res) {
+  await assertOrdersInitialized();
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
   const { carrier, tracking, service, items } = req.validated.body || {};
@@ -478,12 +510,14 @@ export async function createShipmentController(req, res) {
 }
 
 export async function getShipmentController(req, res) {
+  await assertOrdersInitialized();
   const item = await Shipment.findById(req.params.id);
   if (!item) return res.status(404).json({ error: { message: t('errors.shipment_not_found') } });
   res.json({ shipment: item });
 }
 
 export async function listOrderShipmentsController(req, res) {
+  await assertOrdersInitialized();
   const { page = 1, limit = 20 } = req.query;
   const order = req.validated.params.id;
   const l = Math.max(1, Number(limit) || 20);

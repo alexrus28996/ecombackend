@@ -3,7 +3,7 @@ import { Cart } from '../cart/cart.model.js';
 import { Product } from '../catalog/product.model.js';
 import { Order } from './order.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
-import { CART_STATUS, PAYMENT_METHOD } from '../../config/constants.js';
+import { CART_STATUS, ORDER_STATUS, PAYMENT_STATUS,PAYMENT_METHOD } from '../../config/constants.js';
 import { getAvailableStock } from '../inventory/services/stock.service.js';
 import { generateInvoicePdf } from './invoice.service.js';
 import { deliverEmail } from '../../utils/mailer.js';
@@ -99,6 +99,8 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
         currency: cart.currency,
         paymentMethod: method,
         paymentProvider: method === PAYMENT_METHOD.COD ? 'cod' : undefined,
+        status: ORDER_STATUS.PENDING,
+        paymentStatus: PAYMENT_STATUS.UNPAID,
         shippingAddress: resolvedShipping,
         billingAddress: resolvedBilling
       }

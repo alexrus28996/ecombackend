@@ -32,6 +32,15 @@ function isClientSession(candidate) {
   return typeof candidate === 'object'
     && typeof candidate.startTransaction === 'function'
     && typeof candidate.commitTransaction === 'function';
+
+}
+function isSession(session) {
+  return Boolean(session && typeof session === 'object' && typeof session.withTransaction === 'function');
+}
+
+function isTransactionUnsupported(err) {
+  const msg = String(err?.message || '');
+  return msg.includes('Transaction numbers are only allowed') || err?.codeName === 'IllegalOperation';
 }
 
 export async function reserveOrderItems({
@@ -48,7 +57,7 @@ export async function reserveOrderItems({
   const normalized = normalizeItems(items);
   if (!normalized.length) return [];
   const expiryTimestamp = resolveExpiry(expiresInMinutes);
-  const existingSession = isClientSession(session) ? session : null;
+  const existingSession = isSession(session) ? session : null;
   const run = async (txn) => {
     const planResult = await quotePickingPlan({ shipTo, items: normalized, splitAllowed });
     if (!planResult.plan.length || planResult.fillRate <= 0) {
@@ -57,7 +66,7 @@ export async function reserveOrderItems({
     if (planResult.fillRate < 1) {
       throw errors.badRequest(ERROR_CODES.INSUFFICIENT_STOCK, 'Unable to fully reserve requested quantity');
     }
-    await allocatePickingPlan({ plan: planResult.plan, orderId, actor: userId, session: txn });
+    await allocatePickingPlan({ plan: planResult.plan, orderId, actor: userId, session: txn || undefined });
     const docs = [];
     for (const leg of planResult.plan) {
       for (const line of leg.items) {
@@ -75,7 +84,7 @@ export async function reserveOrderItems({
         });
       }
     }
-    const created = await Reservation.insertMany(docs, { session: txn });
+    const created = await Reservation.insertMany(docs, { session: txn || undefined });
     for (const res of created) {
       logger.info({ event: 'reservation.created', orderId, reservationId: res._id, locationId: res.locationId, reservedQty: res.reservedQty }, 'Reservation created');
     }
@@ -86,8 +95,19 @@ export async function reserveOrderItems({
   }
   const newSession = await mongoose.startSession();
   try {
-    const result = await newSession.withTransaction(run);
-    return result;
+    let created;
+    try {
+      await newSession.withTransaction(async () => {
+        created = await run(newSession);
+      });
+    } catch (err) {
+      if (isTransactionUnsupported(err)) {
+        created = await run(null);
+      } else {
+        throw err;
+      }
+    }
+    return created;
   } finally {
     try {
       await newSession.endSession();
@@ -100,50 +120,116 @@ export async function reserveOrderItems({
 export async function releaseOrderReservations(orderId, { reason = 'cancelled', session = null, notes } = {}) {
   if (!orderId) return 0;
   const id = typeof orderId === 'string' ? new mongoose.Types.ObjectId(orderId) : orderId;
-  const sess = isClientSession(session) ? session : null;
-  const reservations = await Reservation.find({ orderId: id, status: 'active' }).session(sess).lean();
-  if (!reservations.length) return 0;
-  const adjustments = reservations.map((res) => ({
-    productId: res.productId,
-    variantId: res.variantId,
-    locationId: res.locationId,
-    reservedChange: -Math.abs(res.reservedQty),
-    qtyChange: 0
-  }));
-  await adjustStockLevels({ adjustments, reason: 'RESERVATION_RELEASE', actor: String(reservations[0]?.userId || ''), refType: 'RESERVATION', refId: String(orderId), session: sess });
-  await Reservation.updateMany(
-    { orderId: id, status: 'active' },
-    { $set: { status: reason === 'expired' ? 'expired' : 'cancelled', releasedAt: new Date(), notes } },
-    { session: sess || undefined }
-  );
-  for (const res of reservations) {
-    logger.info({ event: 'reservation.released', orderId, reservationId: res._id, reason }, 'Reservation released');
+  const run = async (txn) => {
+    let query = Reservation.find({ orderId: id, status: 'active' });
+    if (txn) query = query.session(txn);
+    const reservations = await query.lean();
+    if (!reservations.length) return 0;
+    const adjustments = reservations.map((res) => ({
+      productId: res.productId,
+      variantId: res.variantId,
+      locationId: res.locationId,
+      reservedChange: -Math.abs(res.reservedQty),
+      qtyChange: 0
+    }));
+    await adjustStockLevels({
+      adjustments,
+      reason: 'RESERVATION_RELEASE',
+      actor: String(reservations[0]?.userId || ''),
+      refType: 'RESERVATION',
+      refId: String(orderId),
+      session: txn || undefined
+    });
+    await Reservation.updateMany(
+      { orderId: id, status: 'active' },
+      { $set: { status: reason === 'expired' ? 'expired' : 'cancelled', releasedAt: new Date(), notes } },
+      { session: txn || undefined }
+    );
+    for (const res of reservations) {
+      logger.info({ event: 'reservation.released', orderId, reservationId: res._id, reason }, 'Reservation released');
+    }
+    return reservations.length;
+  };
+
+  const sess = isSession(session) ? session : null;
+  if (sess) {
+    return run(sess);
   }
-  return reservations.length;
+
+  const newSession = await mongoose.startSession();
+  try {
+    let released = 0;
+    try {
+      await newSession.withTransaction(async () => {
+        released = await run(newSession);
+      });
+    } catch (err) {
+      if (isTransactionUnsupported(err)) {
+        return run(null);
+      }
+      throw err;
+    }
+    return released;
+  } finally {
+    await newSession.endSession();
+  }
 }
 
 export async function convertReservationsToStock(orderId, { byUserId, session = null, note } = {}) {
   if (!orderId) return 0;
-  const sess = isClientSession(session) ? session : null;
-  const reservations = await Reservation.find({ orderId, status: 'active' }).session(sess);
-  if (!reservations.length) return 0;
-  const adjustments = reservations.map((res) => ({
-    productId: res.productId,
-    variantId: res.variantId,
-    locationId: res.locationId,
-    qtyChange: -Math.abs(res.reservedQty),
-    reservedChange: -Math.abs(res.reservedQty)
-  }));
-  await adjustStockLevels({ adjustments, reason: 'FULFILLMENT', actor: byUserId, refType: 'ORDER', refId: String(orderId), session: sess });
-  await Reservation.updateMany(
-    { orderId, status: 'active' },
-    { $set: { status: 'converted', convertedAt: new Date(), notes: note } },
-    { session: sess || undefined }
-  );
-  for (const res of reservations) {
-    logger.info({ event: 'reservation.converted', orderId, reservationId: res._id, locationId: res.locationId }, 'Reservation converted into stock deduction');
+  const run = async (txn) => {
+    let query = Reservation.find({ orderId, status: 'active' });
+    if (txn) query = query.session(txn);
+    const reservations = await query;
+    if (!reservations.length) return 0;
+    const adjustments = reservations.map((res) => ({
+      productId: res.productId,
+      variantId: res.variantId,
+      locationId: res.locationId,
+      qtyChange: -Math.abs(res.reservedQty),
+      reservedChange: -Math.abs(res.reservedQty)
+    }));
+    await adjustStockLevels({
+      adjustments,
+      reason: 'FULFILLMENT',
+      actor: byUserId,
+      refType: 'ORDER',
+      refId: String(orderId),
+      session: txn || undefined
+    });
+    await Reservation.updateMany(
+      { orderId, status: 'active' },
+      { $set: { status: 'converted', convertedAt: new Date(), notes: note } },
+      { session: txn || undefined }
+    );
+    for (const res of reservations) {
+      logger.info({ event: 'reservation.converted', orderId, reservationId: res._id, locationId: res.locationId }, 'Reservation converted into stock deduction');
+    }
+    return reservations.length;
+  };
+
+  const sess = isSession(session) ? session : null;
+  if (sess) {
+    return run(sess);
   }
-  return reservations.length;
+
+  const newSession = await mongoose.startSession();
+  try {
+    let converted = 0;
+    try {
+      await newSession.withTransaction(async () => {
+        converted = await run(newSession);
+      });
+    } catch (err) {
+      if (isTransactionUnsupported(err)) {
+        return run(null);
+      }
+      throw err;
+    }
+    return converted;
+  } finally {
+    await newSession.endSession();
+  }
 }
 
 export async function expireStaleReservations({ limit = 200, now = new Date() } = {}) {
