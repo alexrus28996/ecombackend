@@ -1,4 +1,4 @@
-import { createPaymentIntentForOrder, constructStripeEvent, applyPaymentIntentSucceeded } from '../../../modules/payments/stripe.service.js';
+import { createPaymentIntentForOrder, constructStripeEvent, applyPaymentIntentSucceeded, applyStripeRefundEvent } from '../../../modules/payments/stripe.service.js';
 import { config } from '../../../config/index.js';
 import { errors, ERROR_CODES } from '../../../errors/index.js';
 
@@ -23,6 +23,13 @@ export async function stripeWebhook(req, res) {
   switch (event.type) {
     case 'payment_intent.succeeded':
       await applyPaymentIntentSucceeded(event.data.object);
+      break;
+    case 'refund.created':
+    case 'refund.updated':
+    case 'refund.succeeded':
+    case 'refund.failed':
+    case 'charge.refunded':
+      await applyStripeRefundEvent(event);
       break;
     default:
       break;

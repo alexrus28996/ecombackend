@@ -5307,6 +5307,15 @@
           "201": {
             "description": "Created"
           },
+          "400": {
+            "description": "Invalid upload request"
+          },
+          "401": {
+            "description": "Cloudinary authentication failed"
+          },
+          "500": {
+            "description": "Cloudinary error"
+          },
           "503": {
             "description": "Not configured"
           }
@@ -5345,6 +5354,15 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Missing or invalid publicId"
+          },
+          "401": {
+            "description": "Cloudinary authentication failed"
+          },
+          "500": {
+            "description": "Cloudinary error"
           },
           "503": {
             "description": "Not configured"
@@ -5413,6 +5431,179 @@
           },
           "403": {
             "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/permissions": {
+      "get": {
+        "summary": "List user permissions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "post": {
+        "summary": "Replace user permissions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "permissions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "permissions"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/permissions/add": {
+      "patch": {
+        "summary": "Add permissions to user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "permissions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "permissions"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/permissions/remove": {
+      "patch": {
+        "summary": "Remove permissions from user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "permissions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "permissions"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
           },
           "404": {
             "description": "Not Found"
@@ -5620,7 +5811,7 @@
         ],
         "parameters": [
           {
-            "name": "order",
+            "name": "orderId",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5693,107 +5884,6 @@
     "/api/admin/refunds": {
       "get": {
         "summary": "List refunds (admin)",
-        "PaymentTransaction": {
-          "type": "object",
-          "properties": {
-            "_id": {
-              "type": "string"
-            },
-            "order": {
-              "type": "string"
-            },
-            "provider": {
-              "type": "string"
-            },
-            "status": {
-              "type": "string",
-              "enum": [
-                "pending",
-                "succeeded",
-                "failed",
-                "refunded"
-              ]
-            },
-            "amount": {
-              "type": "number"
-            },
-            "currency": {
-              "type": "string"
-            },
-            "providerRef": {
-              "type": "string"
-            }
-          }
-        },
-        "Refund": {
-          "type": "object",
-          "properties": {
-            "_id": {
-              "type": "string"
-            },
-            "order": {
-              "type": "string"
-            },
-            "transaction": {
-              "type": "string"
-            },
-            "provider": {
-              "type": "string"
-            },
-            "status": {
-              "type": "string",
-              "enum": [
-                "pending",
-                "succeeded",
-                "failed"
-              ]
-            },
-            "amount": {
-              "type": "number"
-            },
-            "currency": {
-              "type": "string"
-            },
-            "providerRef": {
-              "type": "string"
-            },
-            "reason": {
-              "type": "string"
-            }
-          }
-        },
-        "Shipment": {
-          "type": "object",
-          "properties": {
-            "_id": {
-              "type": "string"
-            },
-            "order": {
-              "type": "string"
-            },
-            "address": {
-              "$ref": "#/components/schemas/Address"
-            },
-            "carrier": {
-              "type": "string"
-            },
-            "service": {
-              "type": "string"
-            },
-            "tracking": {
-              "type": "string"
-            },
-            "status": {
-              "type": "string",
-              "enum": [
-                "pending",
-                "shipped",
-                "delivered",
-                "returned"
-              ]
-            }
-          }
-        },
         "security": [
           {
             "bearerAuth": []
@@ -5801,7 +5891,7 @@
         ],
         "parameters": [
           {
-            "name": "order",
+            "name": "orderId",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5871,6 +5961,107 @@
         }
       }
     },
+    "PaymentTransaction": {
+      "type": "object",
+      "properties": {
+        "_id": {
+          "type": "string"
+        },
+        "order": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "succeeded",
+            "failed",
+            "refunded"
+          ]
+        },
+        "amount": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "providerRef": {
+          "type": "string"
+        }
+      }
+    },
+    "Refund": {
+      "type": "object",
+      "properties": {
+        "_id": {
+          "type": "string"
+        },
+        "order": {
+          "type": "string"
+        },
+        "transaction": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "succeeded",
+            "failed"
+          ]
+        },
+        "amount": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "providerRef": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "Shipment": {
+      "type": "object",
+      "properties": {
+        "_id": {
+          "type": "string"
+        },
+        "order": {
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/components/schemas/Address"
+        },
+        "carrier": {
+          "type": "string"
+        },
+        "service": {
+          "type": "string"
+        },
+        "tracking": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "shipped",
+            "delivered",
+            "returned"
+          ]
+        }
+      }
+    },
     "/api/admin/shipments": {
       "get": {
         "summary": "List shipments (admin)",
@@ -5881,7 +6072,7 @@
         ],
         "parameters": [
           {
-            "name": "order",
+            "name": "orderId",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5944,6 +6135,9 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "404": {
+            "description": "Order not found"
           }
         }
       },
@@ -5979,6 +6173,12 @@
                   },
                   "service": {
                     "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
                   }
                 }
               }
@@ -5988,6 +6188,12 @@
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "400": {
+            "description": "Order must be paid"
+          },
+          "404": {
+            "description": "Order not found"
           }
         }
       }

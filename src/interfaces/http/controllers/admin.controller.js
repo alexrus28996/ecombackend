@@ -26,9 +26,12 @@ const allowedOrderTransitions = Object.freeze({
   [ORDER_STATUS.REFUNDED]: []
 });
 
-async function assertOrdersInitialized() {
-  const exists = await Order.exists({});
-  if (!exists) throw errors.serviceUnavailable(ERROR_CODES.ORDERS_NOT_INITIALIZED);
+function formatPermissionsResponse(user) {
+  return { userId: user._id.toString(), permissions: [...(user.permissions || [])].sort() };
+}
+
+function normalizePermissions(list = []) {
+  return Array.from(new Set(list.map((perm) => perm.trim()).filter(Boolean))).sort();
 }
 
 export async function listUsers(req, res) {
@@ -86,6 +89,45 @@ export async function demoteUser(req, res) {
   if (user.roles.length === 0) user.roles = [ROLES.CUSTOMER];
   await user.save();
   res.json({ user: { id: user._id.toString(), name: user.name, email: user.email, roles: user.roles } });
+}
+
+export async function getUserPermissionsController(req, res) {
+  const { id } = req.validated.params;
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ error: { message: 'User not found' } });
+  res.json(formatPermissionsResponse(user));
+}
+
+export async function replaceUserPermissionsController(req, res) {
+  const { id } = req.validated.params;
+  const { permissions } = req.validated.body;
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ error: { message: 'User not found' } });
+  user.permissions = normalizePermissions(permissions);
+  await user.save();
+  res.json(formatPermissionsResponse(user));
+}
+
+export async function addUserPermissionsController(req, res) {
+  const { id } = req.validated.params;
+  const { permissions } = req.validated.body;
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ error: { message: 'User not found' } });
+  const existing = Array.isArray(user.permissions) ? user.permissions : [];
+  user.permissions = normalizePermissions([...existing, ...permissions]);
+  await user.save();
+  res.json(formatPermissionsResponse(user));
+}
+
+export async function removeUserPermissionsController(req, res) {
+  const { id } = req.validated.params;
+  const { permissions } = req.validated.body;
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ error: { message: 'User not found' } });
+  const toRemove = new Set(normalizePermissions(permissions));
+  user.permissions = normalizePermissions((user.permissions || []).filter((perm) => !toRemove.has(perm)));
+  await user.save();
+  res.json(formatPermissionsResponse(user));
 }
 
 export async function metrics(req, res) {
@@ -345,7 +387,13 @@ export async function approveReturnController(req, res) {
           amountCents = Math.floor(Math.max(0, sum) * 100);
         }
       }
-      const r = await refundPaymentIntent(order.transactionId, amountCents);
+      const r = await refundPaymentIntent(order.transactionId, {
+        amountCents,
+        metadata: {
+          orderId: order._id.toString(),
+          requestedBy: req.user.sub
+        }
+      });
       try {
         const tx = await PaymentTransaction.findOne({ order: order._id, providerRef: order.transactionId });
         const refundAmount = typeof req.validated?.body?.amount === 'number' ? req.validated.body.amount : (amountCents ? amountCents / 100 : order.total);
@@ -423,24 +471,29 @@ export async function rejectReturnController(req, res) {
 
 // Payments: Transactions
 export async function listTransactionsController(req, res) {
-  await assertOrdersInitialized();
-  const { order, provider, status, page = 1, limit = 20 } = req.query;
+  const { order, orderId, provider, status } = req.query;
+  const limitRaw = req.query.limit ?? 20;
+  const pageRaw = req.query.page ?? 1;
+  const l = Math.max(1, Math.min(Number(limitRaw) || 20, 100));
+  const p = Math.max(1, Number(pageRaw) || 1);
+  const hasOrders = await Order.exists({});
+  if (!hasOrders) {
+    return res.json({ items: [], total: 0, page: p, pages: 0 });
+  }
   const filter = {};
-  if (order) filter.order = order;
+  const orderFilter = orderId || order;
+  if (orderFilter) filter.order = orderFilter;
   if (provider) filter.provider = provider;
   if (status) filter.status = status;
-  const l = Math.max(1, Number(limit) || 20);
-  const p = Math.max(1, Number(page) || 1);
   const skip = (p - 1) * l;
   const [items, total] = await Promise.all([
     PaymentTransaction.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
     PaymentTransaction.countDocuments(filter)
   ]);
-  res.json({ items, total, page: p, pages: Math.ceil(total / l || 1) });
+  res.json({ items, total, page: p, pages: total ? Math.ceil(total / l) : 0 });
 }
 
 export async function getTransactionController(req, res) {
-  await assertOrdersInitialized();
   const item = await PaymentTransaction.findById(req.params.id);
   if (!item) return res.status(404).json({ error: { message: 'Transaction not found' } });
   res.json({ transaction: item });
@@ -448,24 +501,29 @@ export async function getTransactionController(req, res) {
 
 // Payments: Refunds
 export async function listRefundsAdminController(req, res) {
-  await assertOrdersInitialized();
-  const { order, provider, status, page = 1, limit = 20 } = req.query;
+  const { order, orderId, provider, status } = req.query;
+  const limitRaw = req.query.limit ?? 20;
+  const pageRaw = req.query.page ?? 1;
+  const l = Math.max(1, Math.min(Number(limitRaw) || 20, 100));
+  const p = Math.max(1, Number(pageRaw) || 1);
+  const hasOrders = await Order.exists({});
+  if (!hasOrders) {
+    return res.json({ items: [], total: 0, page: p, pages: 0 });
+  }
   const filter = {};
-  if (order) filter.order = order;
+  const orderFilter = orderId || order;
+  if (orderFilter) filter.order = orderFilter;
   if (provider) filter.provider = provider;
   if (status) filter.status = status;
-  const l = Math.max(1, Number(limit) || 20);
-  const p = Math.max(1, Number(page) || 1);
   const skip = (p - 1) * l;
   const [items, total] = await Promise.all([
     Refund.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
     Refund.countDocuments(filter)
   ]);
-  res.json({ items, total, page: p, pages: Math.ceil(total / l || 1) });
+  res.json({ items, total, page: p, pages: total ? Math.ceil(total / l) : 0 });
 }
 
 export async function getRefundAdminController(req, res) {
-  await assertOrdersInitialized();
   const item = await Refund.findById(req.params.id);
   if (!item) return res.status(404).json({ error: { message: 'Refund not found' } });
   res.json({ refund: item });
@@ -473,24 +531,32 @@ export async function getRefundAdminController(req, res) {
 
 // Fulfillment: Shipments
 export async function listShipmentsController(req, res) {
-  await assertOrdersInitialized();
-  const { order, page = 1, limit = 20 } = req.query;
+  const { order, orderId } = req.query;
+  const limitRaw = req.query.limit ?? 20;
+  const pageRaw = req.query.page ?? 1;
+  const l = Math.max(1, Math.min(Number(limitRaw) || 20, 100));
+  const p = Math.max(1, Number(pageRaw) || 1);
+  const hasOrders = await Order.exists({});
+  if (!hasOrders) {
+    return res.json({ items: [], total: 0, page: p, pages: 0 });
+  }
   const filter = {};
-  if (order) filter.order = order;
-  const l = Math.max(1, Number(limit) || 20);
-  const p = Math.max(1, Number(page) || 1);
+  const orderFilter = orderId || order;
+  if (orderFilter) filter.order = orderFilter;
   const skip = (p - 1) * l;
   const [items, total] = await Promise.all([
     Shipment.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
     Shipment.countDocuments(filter)
   ]);
-  res.json({ items, total, page: p, pages: Math.ceil(total / l || 1) });
+  res.json({ items, total, page: p, pages: total ? Math.ceil(total / l) : 0 });
 }
 
 export async function createShipmentController(req, res) {
-  await assertOrdersInitialized();
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
+  if (order.paymentStatus !== PAYMENT_STATUS.PAID) {
+    return res.status(400).json({ error: { message: 'Order must be paid before creating shipments' } });
+  }
   const { carrier, tracking, service, items } = req.validated.body || {};
   const payload = {
     order: order._id,
@@ -510,16 +576,16 @@ export async function createShipmentController(req, res) {
 }
 
 export async function getShipmentController(req, res) {
-  await assertOrdersInitialized();
   const item = await Shipment.findById(req.params.id);
   if (!item) return res.status(404).json({ error: { message: t('errors.shipment_not_found') } });
   res.json({ shipment: item });
 }
 
 export async function listOrderShipmentsController(req, res) {
-  await assertOrdersInitialized();
   const { page = 1, limit = 20 } = req.query;
   const order = req.validated.params.id;
+  const exists = await Order.exists({ _id: order });
+  if (!exists) return res.status(404).json({ error: { message: t('errors.order_not_found') } });
   const l = Math.max(1, Number(limit) || 20);
   const p = Math.max(1, Number(page) || 1);
   const skip = (p - 1) * l;
@@ -527,7 +593,7 @@ export async function listOrderShipmentsController(req, res) {
     Shipment.find({ order }).sort({ createdAt: -1 }).skip(skip).limit(l),
     Shipment.countDocuments({ order })
   ]);
-  res.json({ items, total, page: p, pages: Math.ceil(total / l || 1) });
+  res.json({ items, total, page: p, pages: total ? Math.ceil(total / l) : 0 });
 }
 
 // Variant matrix generation (admin helper)

@@ -187,8 +187,8 @@ Audience legend: Public (no auth), Authenticated user (valid JWT), Admin (requir
 | Endpoint | Audience | Status | Request | Response / Notes |
 | --- | --- | --- | --- | --- |
 | `POST /api/uploads` | Admin (role) | Working (manual review) | Multipart form-data with field `file` | `201 { "url", "filename", "mimetype", "size" }`. Stores file under `uploads/`. |
-| `POST /api/uploads/cloudinary` | Admin (role) | Blocked (Cloudinary required) | Multipart form-data with field `file` | Returns 503 unless Cloudinary credentials are configured. On success responds with `{ "url", "publicId", "width", "height", "format", "bytes" }`. |
-| `POST /api/uploads/cloudinary/delete` | Admin (role) | Blocked (Cloudinary required) | Body `{ "publicId" }` | `{ "result": "ok" }` after cloud deletion. |
+| `POST /api/uploads/cloudinary` | Admin (role) | Working (automated) | Multipart form-data with field `file` | `201 { "url", "publicId", "width", "height", "format", "bytes" }`. Validates image uploads, surfaces auth failures, and pulls credentials from `CLOUDINARY_*`. Covered by `__tests__/uploads.test.js`. |
+| `POST /api/uploads/cloudinary/delete` | Admin (role) | Working (automated) | Body `{ "publicId" }` | `{ "result": { ... } }`. Returns 400 for missing ids and 401 on Cloudinary auth errors. Covered by `__tests__/uploads.test.js`. |
 
 ### Admin: users and roles
 
@@ -199,6 +199,10 @@ Audience legend: Public (no auth), Authenticated user (valid JWT), Admin (requir
 | `PATCH /api/admin/users/:id` | Admin (role) | Working (manual review) | Body `{ "isActive?" }` | `{ "user": { ... } }`. |
 | `POST /api/admin/users/:id/promote` | Admin (role) | Working (manual review) | None | `{ "user": { ...roles updated... } }`. Adds `admin` role. |
 | `POST /api/admin/users/:id/demote` | Admin (role) | Working (manual review) | None | `{ "user": { ...roles updated... } }`. Removes `admin`, ensures at least `customer`. |
+| `GET /api/admin/users/:id/permissions` | Admin (role) | Working (automated) | Params `{ id }` | `{ "userId", "permissions" }`. Covered by `__tests__/admin-permissions.test.js`. |
+| `POST /api/admin/users/:id/permissions` | Admin (role) | Working (automated) | Body `{ "permissions": string[] }` | Replaces the full permission set. Covered by `__tests__/admin-permissions.test.js`. |
+| `PATCH /api/admin/users/:id/permissions/add` | Admin (role) | Working (automated) | Body `{ "permissions": string[] }` | Adds unique permissions without duplicates. Covered by `__tests__/admin-permissions.test.js`. |
+| `PATCH /api/admin/users/:id/permissions/remove` | Admin (role) | Working (automated) | Body `{ "permissions": string[] }` | Removes any matching permissions. Covered by `__tests__/admin-permissions.test.js`. |
 
 ### Admin: metrics
 
@@ -253,19 +257,19 @@ Audience legend: Public (no auth), Authenticated user (valid JWT), Admin (requir
 
 | Endpoint | Audience | Status | Request | Response / Notes |
 | --- | --- | --- | --- | --- |
-| `GET /api/admin/transactions` | Admin (role) | Working (manual review) | Query `order?`, `provider?`, `status?`, `page?`, `limit?` | `{ "items": PaymentTransaction[], "total", "page", "pages" }`. Returns 503 `ORDERS_NOT_INITIALIZED` until an order exists. |
-| `GET /api/admin/transactions/:id` | Admin (role) | Working (manual review) | Params `{ id }` | `{ "transaction": PaymentTransaction }`. Same initialization guard applies. |
-| `GET /api/admin/refunds` | Admin (role) | Working (manual review) | Query `order?`, `provider?`, `status?`, `page?`, `limit?` | `{ "items": Refund[], "total", "page", "pages" }`. Returns 503 if the orders system has no data yet. |
-| `GET /api/admin/refunds/:id` | Admin (role) | Working (manual review) | Params `{ id }` | `{ "refund": Refund }`. |
+| `GET /api/admin/transactions` | Admin (role) | Working (automated) | Query `orderId?`, `provider?`, `status?`, `page?`, `limit?` | `{ "items": PaymentTransaction[], "total", "page", "pages" }`. Returns an empty dataset when no orders exist. Covered by `__tests__/admin-payments.test.js`. |
+| `GET /api/admin/transactions/:id` | Admin (role) | Working (automated) | Params `{ id }` | `{ "transaction": PaymentTransaction }`. Covered by `__tests__/admin-payments.test.js`. |
+| `GET /api/admin/refunds` | Admin (role) | Working (automated) | Query `orderId?`, `provider?`, `status?`, `page?`, `limit?` | `{ "items": Refund[], "total", "page", "pages" }`. Syncs with Stripe refund webhooks; returns empty datasets when none exist. Covered by `__tests__/admin-payments.test.js`. |
+| `GET /api/admin/refunds/:id` | Admin (role) | Working (automated) | Params `{ id }` | `{ "refund": Refund }`. Covered by `__tests__/admin-payments.test.js`. |
 
 ### Admin: shipments
 
 | Endpoint | Audience | Status | Request | Response / Notes |
 | --- | --- | --- | --- | --- |
-| `GET /api/admin/shipments` | Admin (role) | Working (manual review) | Query `order?`, `page?`, `limit?` | `{ "items": Shipment[], "total", "page", "pages" }`. Returns 503 `ORDERS_NOT_INITIALIZED` until at least one order exists. |
-| `GET /api/admin/shipments/:id` | Admin (role) | Working (manual review) | Params `{ id }` | `{ "shipment": Shipment }`. |
-| `POST /api/admin/orders/:id/shipments` | Admin (role) | Working (manual review) | Body `{ "carrier?", "tracking?", "service?", "items?" }` | `201 { "shipment": Shipment }`. Guarded by the same initialization check; defaults to order items when `items` omitted. |
-| `GET /api/admin/orders/:id/shipments` | Admin (role) | Working (manual review) | Query `page?`, `limit?` | `{ "items": Shipment[], "total", "page", "pages" }`. |
+| `GET /api/admin/shipments` | Admin (role) | Working (automated) | Query `orderId?`, `page?`, `limit?` | `{ "items": Shipment[], "total", "page", "pages" }`. Returns empty datasets until shipments exist. Covered by `__tests__/admin-shipments.test.js`. |
+| `GET /api/admin/shipments/:id` | Admin (role) | Working (automated) | Params `{ id }` | `{ "shipment": Shipment }`. Covered by `__tests__/admin-shipments.test.js`. |
+| `POST /api/admin/orders/:id/shipments` | Admin (role) | Working (automated) | Body `{ "carrier?", "tracking?", "service?", "items?" }` | `201 { "shipment": Shipment }`. Only allowed for paid orders; defaults to full order items when omitted. Covered by `__tests__/admin-shipments.test.js`. |
+| `GET /api/admin/orders/:id/shipments` | Admin (role) | Working (automated) | Query `page?`, `limit?` | `{ "items": Shipment[], "total", "page", "pages" }`. Returns 404 when the order is not found. Covered by `__tests__/admin-shipments.test.js`. |
 
 ### Admin: products under /api/admin
 

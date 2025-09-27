@@ -15,6 +15,7 @@ export const enUS = {
     payment_method_cod: 'Cash on delivery selected',
     invoice_generated: 'Invoice {invoiceNumber} generated',
     payment_succeeded_stripe: 'Payment succeeded (Stripe)',
+    refund_recorded_stripe: 'Refund of {amount} {currency} recorded (Stripe)',
     return_approved: 'Return approved and refunded',
     return_rejected: 'Return rejected',
     auto_cancel: 'Order auto-cancelled after {minutes} minutes'

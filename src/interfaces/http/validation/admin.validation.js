@@ -7,6 +7,18 @@ export const idParam = { params: z.object({ id: z.string().min(1) }) };
 
 export const updateUserSchema = { body: z.object({ isActive: z.boolean().optional() }) };
 
+const permissionsArray = z.array(z.string().min(1));
+
+export const permissionsReplaceSchema = {
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({ permissions: permissionsArray })
+};
+
+export const permissionsModifySchema = {
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({ permissions: permissionsArray.min(1) })
+};
+
 export const updateOrderSchema = {
   body: z.object({
     status: z.enum([ORDER_STATUS.PENDING, ORDER_STATUS.PAID, ORDER_STATUS.SHIPPED, ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED, ORDER_STATUS.REFUNDED]).optional(),

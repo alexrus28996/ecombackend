@@ -1346,7 +1346,13 @@ export function buildOpenApiSpec() {
           summary: 'Upload image to Cloudinary (admin)',
           security: [{ bearerAuth: [] }],
           requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } }, required: ['file'] } } } },
-          responses: { '201': { description: 'Created' }, '503': { description: 'Not configured' } }
+          responses: {
+            '201': { description: 'Created' },
+            '400': { description: 'Invalid upload request' },
+            '401': { description: 'Cloudinary authentication failed' },
+            '500': { description: 'Cloudinary error' },
+            '503': { description: 'Not configured' }
+          }
         }
       },
       [`${api}/uploads/cloudinary/delete`]: {
@@ -1354,7 +1360,13 @@ export function buildOpenApiSpec() {
           summary: 'Delete Cloudinary asset (admin)',
           security: [{ bearerAuth: [] }],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { publicId: { type: 'string' } }, required: ['publicId'] }, example: { publicId: 'ecombackend/abc123' } } } },
-          responses: { '200': { description: 'OK' }, '503': { description: 'Not configured' } }
+          responses: {
+            '200': { description: 'OK' },
+            '400': { description: 'Missing or invalid publicId' },
+            '401': { description: 'Cloudinary authentication failed' },
+            '500': { description: 'Cloudinary error' },
+            '503': { description: 'Not configured' }
+          }
         }
       },
       [`${api}/admin/users/{id}/promote`]: {
@@ -1381,6 +1393,72 @@ export function buildOpenApiSpec() {
             '403': { description: 'Forbidden' },
             '404': { description: 'Not Found' }
           }
+        }
+      },
+      [`${api}/admin/users/{id}/permissions`]: {
+        get: {
+          summary: 'List user permissions',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        },
+        post: {
+          summary: 'Replace user permissions',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: { permissions: { type: 'array', items: { type: 'string' } } },
+                  required: ['permissions']
+                }
+              }
+            }
+          },
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/users/{id}/permissions/add`]: {
+        patch: {
+          summary: 'Add permissions to user',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: { permissions: { type: 'array', items: { type: 'string' } } },
+                  required: ['permissions']
+                }
+              }
+            }
+          },
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/users/{id}/permissions/remove`]: {
+        patch: {
+          summary: 'Remove permissions from user',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: { permissions: { type: 'array', items: { type: 'string' } } },
+                  required: ['permissions']
+                }
+              }
+            }
+          },
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         }
       },
       [`${api}/admin/users`]: {
@@ -1429,7 +1507,13 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'List payment transactions (admin)',
           security: [{ bearerAuth: [] }],
-          parameters: [ { name: 'order', in: 'query', schema: { type: 'string' } }, { name: 'provider', in: 'query', schema: { type: 'string' } }, { name: 'status', in: 'query', schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
+          parameters: [
+            { name: 'orderId', in: 'query', schema: { type: 'string' } },
+            { name: 'provider', in: 'query', schema: { type: 'string' } },
+            { name: 'status', in: 'query', schema: { type: 'string' } },
+            { name: 'page', in: 'query', schema: { type: 'integer' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer' } }
+          ],
           responses: { '200': { description: 'OK' } }
         }
       },
@@ -1444,7 +1528,26 @@ export function buildOpenApiSpec() {
       [`${api}/admin/refunds`]: {
         get: {
           summary: 'List refunds (admin)',
-        PaymentTransaction: {
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'orderId', in: 'query', schema: { type: 'string' } },
+            { name: 'provider', in: 'query', schema: { type: 'string' } },
+            { name: 'status', in: 'query', schema: { type: 'string' } },
+            { name: 'page', in: 'query', schema: { type: 'integer' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer' } }
+          ],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/admin/refunds/{id}`]: {
+        get: {
+          summary: 'Get refund by id (admin)',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      PaymentTransaction: {
           type: 'object',
           properties: {
             _id: { type: 'string' },
@@ -1482,24 +1585,15 @@ export function buildOpenApiSpec() {
             status: { type: 'string', enum: ['pending','shipped','delivered','returned'] }
           }
         },
-          security: [{ bearerAuth: [] }],
-          parameters: [ { name: 'order', in: 'query', schema: { type: 'string' } }, { name: 'provider', in: 'query', schema: { type: 'string' } }, { name: 'status', in: 'query', schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
-          responses: { '200': { description: 'OK' } }
-        }
-      },
-      [`${api}/admin/refunds/{id}`]: {
-        get: {
-          summary: 'Get refund by id (admin)',
-          security: [{ bearerAuth: [] }],
-          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
-        }
-      },
       [`${api}/admin/shipments`]: {
         get: {
           summary: 'List shipments (admin)',
           security: [{ bearerAuth: [] }],
-          parameters: [ { name: 'order', in: 'query', schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
+          parameters: [
+            { name: 'orderId', in: 'query', schema: { type: 'string' } },
+            { name: 'page', in: 'query', schema: { type: 'integer' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer' } }
+          ],
           responses: { '200': { description: 'OK' } }
         }
       },
@@ -1507,15 +1601,34 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'List shipments for order (admin)',
           security: [{ bearerAuth: [] }],
-          parameters: [ { name: 'id', in: 'path', required: true, schema: { type: 'string' } }, { name: 'page', in: 'query', schema: { type: 'integer' } }, { name: 'limit', in: 'query', schema: { type: 'integer' } } ],
-          responses: { '200': { description: 'OK' } }
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'page', in: 'query', schema: { type: 'integer' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer' } }
+          ],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Order not found' } }
         },
         post: {
           summary: 'Create shipment for order (admin)',
           security: [{ bearerAuth: [] }],
           parameters: [ { name: 'id', in: 'path', required: true, schema: { type: 'string' } } ],
-          requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: { carrier: { type: 'string' }, tracking: { type: 'string' }, service: { type: 'string' } } } } } },
-          responses: { '201': { description: 'Created' } }
+          requestBody: {
+            required: false,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    carrier: { type: 'string' },
+                    tracking: { type: 'string' },
+                    service: { type: 'string' },
+                    items: { type: 'array', items: { type: 'object' } }
+                  }
+                }
+              }
+            }
+          },
+          responses: { '201': { description: 'Created' }, '400': { description: 'Order must be paid' }, '404': { description: 'Order not found' } }
         }
       },
       [`${api}/admin/shipments/{id}`]: {

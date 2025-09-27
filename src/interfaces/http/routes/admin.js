@@ -8,6 +8,10 @@ import {
   updateUser as updateUserController,
   promoteUser as promoteUserController,
   demoteUser as demoteUserController,
+  getUserPermissionsController,
+  replaceUserPermissionsController,
+  addUserPermissionsController,
+  removeUserPermissionsController,
   metrics as metricsController,
   listOrders as listOrdersController,
   getOrder as getOrderController,
@@ -54,7 +58,7 @@ import {
   deleteProduct as deleteProductController
 } from '../controllers/products.controller.js';
 import { productCreateSchema, productUpdateSchema } from '../validation/products.validation.js';
-import { idParam, updateUserSchema, updateOrderSchema, couponSchema, adjustSchema, importSchema, priceBulkSchema, categoryBulkSchema, shipmentCreateSchema, variantsMatrixSchema, returnApproveSchema, currencyRateListSchema, currencyRateSchema, currencyRateDeleteSchema } from '../validation/admin.validation.js';
+import { idParam, updateUserSchema, updateOrderSchema, couponSchema, adjustSchema, importSchema, priceBulkSchema, categoryBulkSchema, shipmentCreateSchema, variantsMatrixSchema, returnApproveSchema, currencyRateListSchema, currencyRateSchema, currencyRateDeleteSchema, permissionsReplaceSchema, permissionsModifySchema } from '../validation/admin.validation.js';
 import { idempotency } from '../../../middleware/idempotency.js';
 import {
   listCategories as listCategoriesController,
@@ -77,6 +81,10 @@ router.get('/users/:id', authRequired, requireRole(ROLES.ADMIN), validate(idPara
 router.patch('/users/:id', authRequired, requireRole(ROLES.ADMIN), validate({ ...idParam, ...updateUserSchema }), updateUserController);
 router.post('/users/:id/promote', authRequired, requireRole(ROLES.ADMIN), validate(idParam), promoteUserController);
 router.post('/users/:id/demote', authRequired, requireRole(ROLES.ADMIN), validate(idParam), demoteUserController);
+router.get('/users/:id/permissions', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getUserPermissionsController);
+router.post('/users/:id/permissions', authRequired, requireRole(ROLES.ADMIN), validate(permissionsReplaceSchema), replaceUserPermissionsController);
+router.patch('/users/:id/permissions/add', authRequired, requireRole(ROLES.ADMIN), validate(permissionsModifySchema), addUserPermissionsController);
+router.patch('/users/:id/permissions/remove', authRequired, requireRole(ROLES.ADMIN), validate(permissionsModifySchema), removeUserPermissionsController);
 
 // Metrics
 router.get('/metrics', authRequired, requireRole(ROLES.ADMIN), metricsController);
