@@ -11,6 +11,8 @@ This checklist focuses on gaps that remain in the current codebase after alignin
 - **Notification hooks**: surface email/webhook events for order status changes beyond Stripe success (packed, shipped, refunded).
 
 ## 2. Quality & Reliability Improvements
+- **Inventory reservation guards**: Replace the `session instanceof mongoose.ClientSession` checks with a safe detection so order placement, admin cancellations, and Stripe webhooks stop throwing (see `src/modules/inventory/reservation.service.js:40`, `:88`, `:112`).
+- **Review aggregation fix**: Update `recomputeProductRating` to avoid the `Product.castObjectId` call at `src/modules/reviews/review.service.js:61` that currently breaks review create/update/delete paths.
 - **HTTP integration tests**: add Jest/Supertest coverage for the new `/api/products`, `/api/categories`, and `/api/orders` routers to prevent regressions.
 - **Validation coverage**: tighten Zod schemas (e.g., ensure variant attributes match defined attribute options and enforce minimum image requirements on product creation).
 - **Error normalization**: migrate remaining manual `res.status(...).json({ error })` patterns (uploads, permissions) to use the central `errors` helpers for consistency.

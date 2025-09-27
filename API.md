@@ -1,337 +1,313 @@
 # E-commerce HTTP API
 
-All business endpoints are served under the `API_PREFIX` (`/api` by default). Responses are JSON and wrap domain objects without a global `data` envelope. Errors follow the shape `{ "error": { message, code?, details? } }`.
+Last reviewed: 2025-09-26.
 
-- **Authentication**: Supply `Authorization: Bearer <JWT>` for any non-public route.
-- **Idempotency**: Write-heavy routes accept an optional `Idempotency-Key` header (orders, returns, Stripe webhook) and will replay the first response for duplicate keys.
-- **Permissions**: Role based access is enforced either through explicit permissions (e.g. `product:create`) or the `ADMIN` role for the `/admin` namespace.
+All business endpoints are served under the configured `API_PREFIX` (`/api` by default). Responses are JSON and are returned without a global `data` envelope. Errors follow:
 
----
+```json
+{
+  "error": {
+    "message": "Human readable error",
+    "code": "ERROR_CODE",
+    "details": {}
+  }
+}
+```
 
-## Service Health
+- Authentication: supply `Authorization: Bearer <JWT>` on any non-public route. The first registered account is promoted to the `admin` role.
+- Idempotency: endpoints that mutate orders (`POST /api/orders`, `POST /api/admin/returns/:id/approve`) accept an optional `Idempotency-Key` header and replay the first response for duplicate keys.
+- Rate limiting: a global limiter wraps `/api`, with stricter buckets for `/api/auth`, `/api/uploads`, and `/api/payments`.
+- Documentation: OpenAPI JSON is available at `/docs/openapi.json`, and the interactive explorer lives at `/docs`.
+- Static uploads: files stored via the uploads API are served from `/uploads` in development.
 
-### `GET /health`
-- **Description**: Readiness probe. Returns `{ status, name }`.
-- **Auth**: None.
+## Validation snapshot (2025-09-26)
 
----
+Command executed: `npm test`.
 
-## Authentication & Account Lifecycle
+| Area | Status | Evidence / Notes |
+| --- | --- | --- |
+| Authentication, JWT rotation, address book, cart CRUD, coupon pricing, FX conversion, catalog CRUD | Working (automated) | Covered by Jest suites in `__tests__/auth.test.js`, `addresses.test.js`, `cart.test.js`, `coupons.test.js`, `currency.test.js`, `products.test.js`, `pricing.test.js`, `jwt.test.js`, `errors.test.js`. |
+| Cart to order conversion, inventory reservations, Stripe payment success, admin reservation release | Broken | `POST /api/orders` and related flows throw `TypeError: Right-hand side of 'instanceof' is not an object` because Mongoose 8 no longer exposes `mongoose.ClientSession`. Offending guards are in `src/modules/inventory/reservation.service.js` lines 40, 88, and 112. |
+| Product review mutations (create/update/delete/moderation) | Broken | `Product.castObjectId` is invoked in `src/modules/reviews/review.service.js:61` but the model does not define the helper, causing `TypeError: Product.castObjectId is not a function`. |
+| Remaining admin operations (metrics, reports, stock adjustments, imports, uploads, shipments) | Working (manual review) | Code paths inspected; no automated coverage yet. |
 
-### `POST /api/auth/register`
-- **Description**: Register a new customer account. The very first user receives the `ADMIN` role.
-- **Auth**: None.
-- **Body**: `{ "name": string, "email": string, "password": string }`.
-- **Response**: `201 { "user": { id, name, email, roles, isActive, isVerified, createdAt } }`.
+## Endpoint reference
 
-### `POST /api/auth/login`
-- **Description**: Exchange credentials for an access token.
-- **Auth**: None.
-- **Body**: `{ "email": string, "password": string }`.
-- **Response**: `{ "token": string, "refreshToken": string, "user": { id, name, email, roles, permissions?, isVerified } }`.
+Audience legend: Public (no auth), Authenticated user (valid JWT), Admin (requires admin role), Permission (requires the listed permission). Status values reflect verification level: Working (automated), Working (manual review), Broken, or Blocked (dependent on an unfinished flow).
 
-### `GET /api/auth/me`
-- **Description**: Resolve the current user from the presented JWT.
-- **Auth**: Bearer token.
-- **Response**: `{ "user": { id, name, email, roles, isActive, isVerified } }`.
+### Health & metadata
 
-### `POST /api/auth/refresh`
-- **Description**: Rotate a refresh token and receive a new access pair.
-- **Auth**: None.
-- **Body**: `{ "refreshToken": string }`.
-- **Response**: `{ "token": string, "refreshToken": string, "user": {...} }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /health` | Public | Working (manual review) | None | `200 { "status": "ok", "name": config.APP_NAME }`. Used by readiness checks. |
+| `GET /docs` | Public | Working (manual review) | None | Swagger UI generated at runtime (`src/docs/spec.js`). |
+| `GET /docs/openapi.json` | Public | Working (manual review) | None | OpenAPI 3.1 JSON describing the API. |
 
-### `POST /api/auth/logout`
-- **Description**: Revoke a refresh token for the current device.
-- **Auth**: None (token supplied in body).
-- **Body**: `{ "refreshToken": string }`.
-- **Response**: `{ "success": true }`.
+### Authentication & account lifecycle
 
-### `POST /api/auth/password/forgot`
-- **Description**: Trigger password reset email.
-- **Auth**: None.
-- **Body**: `{ "email": string, "baseUrl?": string }` (optional base URL for reset links).
-- **Response**: `{ "success": true }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `POST /api/auth/register` | Public | Working (automated) | Body `{ "name", "email", "password" }` | `201 { "user": { id, name, email, roles, isActive, isVerified, createdAt } }`. First user gains `admin` role. |
+| `POST /api/auth/login` | Public | Working (automated) | Body `{ "email", "password" }` | `{ "token", "refreshToken", "user": { ... } }`. |
+| `GET /api/auth/me` | Authenticated user | Working (manual review) | None | `{ "user": { id, name, email, roles, isActive, isVerified } }`. |
+| `POST /api/auth/refresh` | Public | Working (automated) | Body `{ "refreshToken" }` | `{ "token", "refreshToken", "user": { ... } }`. |
+| `POST /api/auth/logout` | Public | Working (automated) | Body `{ "refreshToken" }` | `{ "success": true }`. |
+| `POST /api/auth/password/forgot` | Public | Working (manual review) | Body `{ "email", "baseUrl?" }` | `{ "success": true }`. Emits log via `src/utils/email.js`. |
+| `POST /api/auth/password/reset` | Public | Working (manual review) | Body `{ "token", "password" }` | `{ "success": true }`. |
+| `POST /api/auth/password/change` | Authenticated user | Working (manual review) | Body `{ "currentPassword", "newPassword" }` | `{ "success": true }`. |
+| `PATCH /api/auth/profile` | Authenticated user | Working (manual review) | Body `{ "name": string }` | `{ "user": { ... } }`. |
+| `GET /api/auth/preferences` | Authenticated user | Working (manual review) | None | `{ "preferences": { locale, notifications: { email, sms, push } } }`. |
+| `PATCH /api/auth/preferences` | Authenticated user | Working (manual review) | Body `{ "locale?", "notifications?": { "email?", "sms?", "push?" } }` | `{ "preferences": { ... } }`. |
+| `POST /api/auth/email/verify/request` | Authenticated user | Working (manual review) | Body `{ "baseUrl?" }` | `{ "success": true }`. |
+| `POST /api/auth/email/verify` | Public | Working (manual review) | Body `{ "token" }` | `{ "success": true }`. |
+| `POST /api/auth/email/change/request` | Authenticated user | Working (manual review) | Body `{ "newEmail", "baseUrl?" }` | `{ "success": true }`. |
 
-### `POST /api/auth/password/reset`
-- **Description**: Reset password using emailed token.
-- **Auth**: None.
-- **Body**: `{ "token": string, "password": string }`.
-- **Response**: `{ "success": true }`.
+### Permissions
 
-### `POST /api/auth/password/change`
-- **Description**: Change password for current user.
-- **Auth**: Bearer token.
-- **Body**: `{ "currentPassword": string, "newPassword": string }`.
-- **Response**: `{ "success": true }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/permissions/me` | Authenticated user | Working (manual review) | None | `{ "userId": string, "permissions": string[] }`. Helpful for debugging JWT payloads. |
 
-### `PATCH /api/auth/profile`
-- **Description**: Update current user's name.
-- **Auth**: Bearer token.
-- **Body**: `{ "name": string }`.
-- **Response**: `{ "user": { ...updated profile } }`.
+### Address book
 
-### `GET /api/auth/preferences`
-- **Description**: Fetch notification and locale preferences.
-- **Auth**: Bearer token.
-- **Response**: `{ "preferences": { locale, notifications: { email, sms, push } } }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/addresses` | Authenticated user | Working (automated) | Query `type?=shipping|billing` | `{ "items": Address[], "total?", "page?", "pages?" }`. Defaults sorted with `isDefault` first. |
+| `POST /api/addresses` | Authenticated user | Working (automated) | Body `{ "type": "shipping"|"billing", "line1", "line2?", "city?", "state?", "postalCode?", "country?", "phone?", "label?", "isDefault?" }` | `201 { "address": Address }`. |
+| `GET /api/addresses/:id` | Authenticated user | Working (automated) | Params `{ id }` | `{ "address": Address }`. 404 when not found or not owned. |
+| `PUT /api/addresses/:id` | Authenticated user | Working (automated) | Body partial address fields | `{ "address": Address }`. |
+| `DELETE /api/addresses/:id` | Authenticated user | Working (automated) | Params `{ id }` | `{ "success": true }`. |
+| `POST /api/addresses/:id/default` | Authenticated user | Working (automated) | None | `{ "address": Address }`. Sets default for its type and clears others. |
 
-### `PATCH /api/auth/preferences`
-- **Description**: Update notification or locale preferences.
-- **Auth**: Bearer token.
-- **Body**: `{ "locale?": string, "notifications?": { "email?": boolean, "sms?": boolean, "push?": boolean } }`.
-- **Response**: `{ "preferences": {...} }`.
+### Catalog: categories
 
-### `POST /api/auth/email/verify/request`
-- **Description**: Send a verification email to the current user.
-- **Auth**: Bearer token.
-- **Body**: `{ "baseUrl?": string }`.
-- **Response**: `{ "success": true }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/categories` | Public | Working (manual review) | Query `q?`, `parent?`, `page?`, `limit?` | `{ "items": Category[], "total", "page", "pages" }`. |
+| `GET /api/categories/:id` | Public | Working (manual review) | Params `{ id }` | `{ "category": Category }`. |
+| `GET /api/categories/:id/children` | Public | Working (manual review) | Query `page?`, `limit?` | Same pager payload filtered by parent id. |
+| `POST /api/categories` | Permission (category:create) | Working (manual review) | Body `{ "name", "slug?", "description?", "parent?" }` | `201 { "category": Category }`. Ensures parent exists and generates slug when missing. |
+| `PUT /api/categories/:id` | Permission (category:edit) | Working (manual review) | Body `{ "name?", "slug?", "description?", "parent?" }` | `{ "category": Category }`. Guards against self-parenting and missing parent. |
+| `POST /api/categories/:id/reorder` | Permission (category:edit) | Working (manual review) | Body `{ "ids": string[] }` | Returns updated child listing with new `sortOrder`. |
+| `DELETE /api/categories/:id` | Permission (category:delete) | Working (manual review) | None | `{ "success": true }` when the category has no children or products. |
 
-### `POST /api/auth/email/verify`
-- **Description**: Verify email or apply email-change token.
-- **Auth**: None.
-- **Body**: `{ "token": string }`.
-- **Response**: `{ "success": true }`.
+### Catalog: brands
 
-### `POST /api/auth/email/change/request`
-- **Description**: Request an email change for the signed-in user.
-- **Auth**: Bearer token.
-- **Body**: `{ "newEmail": string, "baseUrl?": string }`.
-- **Response**: `{ "success": true }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/brands` | Public | Working (manual review) | Query `q?`, `page?`, `limit?` | `{ "items": Brand[], "total", "page", "pages" }`. |
+| `GET /api/brands/:id` | Public | Working (manual review) | Params `{ id }` | `{ "brand": Brand }`. |
+| `POST /api/brands` | Admin (role) | Working (manual review) | Body `{ "name", "slug?", "description?", "logo?", "isActive?" }` | `201 { "brand": Brand }`. Enforces unique name and slug. |
+| `PUT /api/brands/:id` | Admin (role) | Working (manual review) | Body partial brand fields | `{ "brand": Brand }`. |
+| `DELETE /api/brands/:id` | Admin (role) | Working (manual review) | None | `{ "success": true }` when no products reference the brand. |
 
----
+### Catalog: products (public)
 
-## Permissions
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/products` | Public | Working (automated) | Query `q?`, `category?`, `page?`, `limit?` | `{ "items": ProductSummary[], "total", "page", "pages" }`. Items include populated category and brand fields. |
+| `GET /api/products/:id` | Public | Working (automated) | Params `{ id }` | `{ "product": ProductDetail }` with `attributeConfig` and variant list. |
 
-### `GET /api/permissions/me`
-- **Description**: Convenience endpoint to inspect the permission array embedded in the JWT.
-- **Auth**: Bearer token.
-- **Response**: `{ "userId": string, "permissions": string[] }`.
+### Catalog: products (admin CRUD)
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `POST /api/products` | Permission (product:create) | Working (manual review) | Body `{ "name", "description?", "price", "currency?", "images?", "attributes?", "isActive?", "category", "brandId?" }` | `201 { "product": Product }`. Validates category is a leaf and brand exists if provided. |
+| `PUT /api/products/:id` | Permission (product:edit) | Working (manual review) | Body same fields (all optional) | `{ "product": Product }`. |
+| `PATCH /api/products/:id` | Permission (product:edit) | Working (manual review) | Body same as `PUT` | `{ "product": Product }`. |
+| `DELETE /api/products/:id` | Permission (product:delete) | Working (manual review) | None | `{ "success": true }` when no inventory, orders, reviews, or shipments reference the product. |
 
-## Catalog & Discovery
+### Product attributes and options
 
-### Products (`/api/products`)
-- `GET /api/products`
-  - **Description**: Paginated catalog search.
-  - **Query**: `q`, `category`, `brand`, `page`, `limit`.
-  - **Auth**: Public.
-  - **Response**: `{ items: ProductSummary[], total, page, pages }`.
-- `GET /api/products/:id`
-  - **Description**: Product detail including attributes, variants, category, brand.
-  - **Auth**: Public.
-  - **Response**: `{ product: ProductDetail }`.
-- `POST /api/products`
-  - **Description**: Create a product.
-  - **Auth**: Bearer token with `product:create` permission.
-  - **Body**: `{ name, description?, price, currency?, images?, attributes?, category, brandId?, isActive? }`.
-  - **Response**: `201 { product }`.
-- `PUT /api/products/:id` & `PATCH /api/products/:id`
-  - **Description**: Update product metadata.
-  - **Auth**: Bearer token with `product:edit`.
-  - **Body**: Same shape as create (all fields optional).
-  - **Response**: `{ product }`.
-- `DELETE /api/products/:id`
-  - **Description**: Soft delete/deactivate product.
-  - **Auth**: Bearer token with `product:delete`.
-  - **Response**: `{ success: true }` style payload from service (includes removal metadata).
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/products/:productId/attributes` | Public | Working (manual review) | Params `{ productId }` | `{ "items": Attribute[] }` with nested options. |
+| `POST /api/products/:productId/attributes` | Permission (product:edit) | Working (manual review) | Body `{ "name", "slug?", "description?", "sortOrder?", "isRequired?" }` | `201 { "attribute": Attribute }`. |
+| `PUT /api/products/:productId/attributes/:attributeId` | Permission (product:edit) | Working (manual review) | Body partial attribute fields | `{ "attribute": Attribute }`. |
+| `DELETE /api/products/:productId/attributes/:attributeId` | Permission (product:edit) | Working (manual review) | None | `{ "success": true }`. Removes attribute and dependent options. |
+| `GET /api/products/:productId/attributes/:attributeId/options` | Public | Working (manual review) | Params `{ productId, attributeId }` | `{ "items": Option[] }`. |
+| `POST /api/products/:productId/attributes/:attributeId/options` | Permission (product:edit) | Working (manual review) | Body `{ "name", "slug?", "sortOrder?", "metadata?" }` | `201 { "option": Option }`. |
+| `PUT /api/products/:productId/attributes/:attributeId/options/:optionId` | Permission (product:edit) | Working (manual review) | Body partial option fields | `{ "option": Option }`. |
+| `DELETE /api/products/:productId/attributes/:attributeId/options/:optionId` | Permission (product:edit) | Working (manual review) | None | `{ "success": true }`. |
 
-### Product Attributes & Options
-All routes below require `product:edit` permission.
-- `GET /api/products/:productId/attributes` → `{ items: Attribute[] }`.
-- `POST /api/products/:productId/attributes` → create attribute, body `{ name, displayName?, type?, required?, position? }`.
-- `PUT /api/products/:productId/attributes/:attributeId` → update attribute, body similar to create.
-- `DELETE /api/products/:productId/attributes/:attributeId` → removes attribute and associated options/variants.
-- `GET /api/products/:productId/attributes/:attributeId/options` → `{ items: Option[] }`.
-- `POST /api/products/:productId/attributes/:attributeId/options` → create option, body `{ value, label?, position? }`.
-- `PUT /api/products/:productId/attributes/:attributeId/options/:optionId` → update option metadata.
-- `DELETE /api/products/:productId/attributes/:attributeId/options/:optionId` → delete option.
+### Product variants
 
-### Product Variants
-All write operations require `product:edit`.
-- `GET /api/products/:productId/variants` → `{ items: Variant[] }` including attribute map.
-- `GET /api/products/:productId/variants/:variantId` → `{ variant }`.
-- `POST /api/products/:productId/variants` → create variant, body `{ sku, price, quantity?, attributes }`.
-- `PUT /api/products/:productId/variants/:variantId` → update variant.
-- `DELETE /api/products/:productId/variants/:variantId` → remove variant.
-- `POST /api/products/:productId/variants-matrix` → generate variants from attribute values, body `{ options: { color: string[], size: string[] }, base?: { skuPrefix?: string } }`, response `{ items: Variant[] }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/products/:productId/variants` | Public | Working (manual review) | Params `{ productId }` | `{ "items": Variant[] }` including `attributeMap`. |
+| `GET /api/products/:productId/variants/:variantId` | Public | Working (manual review) | Params `{ productId, variantId }` | `{ "variant": Variant }`. |
+| `POST /api/products/:productId/variants` | Permission (product:edit) | Working (manual review) | Body `{ "sku", "selections": [{ "attribute", "option" }], "priceOverride?", "priceDelta?", "stock?", "barcode?", "isActive?" }` | `201 { "variant": Variant }`. |
+| `PUT /api/products/:productId/variants/:variantId` | Permission (product:edit) | Working (manual review) | Body partial variant fields | `{ "variant": Variant }`. |
+| `DELETE /api/products/:productId/variants/:variantId` | Permission (product:edit) | Working (manual review) | None | `{ "success": true }`. |
+| `POST /api/products/:productId/variants-matrix` | Permission (product:edit) | Working (manual review) | Body `{ "options": { "<attribute>": string[] }, "base?": { "price?", "skuPrefix?" } }` | `{ "items": VariantPreview[], "count": number }`. Generates combinations without persisting. |
 
-### Reviews (`/api/products/:productId/reviews`)
-- `GET /` → Public list, query `page`, `limit`. Response `{ items, total, page, pages }`.
-- `POST /` → Authenticated customers upsert review. Body `{ rating: 1..5, title?, body? }`. Response `201 { review }`.
-- `DELETE /:reviewId` → Authenticated user (author) or admin removes review.
-- `POST /:reviewId/approve` & `POST /:reviewId/hide` → Admin moderation. Response `{ review }`.
+### Reviews
 
-### Categories (`/api/categories`)
-- `GET /` → Public tree listing, query `parent`, `page`, `limit`. Response `{ items, total, page, pages }`.
-- `GET /:id` → `{ category }`.
-- `GET /:id/children` → `{ items, total, page, pages }`.
-- `POST /` → Create category. Requires `category:create`. Body `{ name, slug?, description?, parent? }`.
-- `PUT /:id` → Update category. Requires `category:edit`.
-- `POST /:id/reorder` → Update child ordering. Requires `category:edit`. Body `{ ids: string[] }`.
-- `DELETE /:id` → Soft delete. Requires `category:delete`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/products/:productId/reviews` | Public | Working (manual review) | Query `page?`, `limit?`, `includeUnapproved?` | `{ "items": Review[], "total", "page", "pages" }`. |
+| `POST /api/products/:productId/reviews` | Authenticated user | Broken | Body `{ "rating": 1-5, "comment?" }` | Fails because `Product.castObjectId` is undefined in `review.service.js`. |
+| `DELETE /api/products/:productId/reviews/:reviewId` | Authenticated user or admin | Broken | None | Triggers the same `Product.castObjectId` error when recomputing product ratings after delete. |
+| `POST /api/products/:productId/reviews/:reviewId/approve` | Admin (role) | Broken | None | Moderation hits the same rating recompute bug. |
+| `POST /api/products/:productId/reviews/:reviewId/hide` | Admin (role) | Broken | None | Moderation hits the same rating recompute bug. |
 
-### Brands (`/api/brands`)
-- `GET /` → Public list/search (`q`, `page`, `limit`). Response `{ items, total, page, pages }`.
-- `GET /:id` → `{ brand }`.
-- `POST /` → Create brand (admin role required). Body `{ name, slug?, description?, logo? }`.
-- `PUT /:id` → Update brand (admin).
-- `DELETE /:id` → Remove brand (admin).
+### Cart management
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/cart` | Authenticated user | Working (automated) | None | `{ "cart": { items, subtotal, discount, total, currency, couponCode? } }`. |
+| `POST /api/cart/items` | Authenticated user | Working (automated) | Body `{ "productId", "variantId?", "quantity" }` | `201 { "cart": { ... } }`. Validates stock via `getAvailableStock`. |
+| `PATCH /api/cart/items/:productId` | Authenticated user | Working (automated) | Body `{ "variantId?", "quantity" }` | `{ "cart": { ... } }`. |
+| `DELETE /api/cart/items/:productId` | Authenticated user | Working (automated) | Query `variantId?` | `{ "cart": { ... } }`. |
+| `POST /api/cart/clear` | Authenticated user | Working (automated) | None | `{ "cart": { items: [], subtotal: 0, total: 0 } }`. |
+| `POST /api/cart/coupon` | Authenticated user | Working (automated) | Body `{ "code" }` | `{ "cart": { ... } }`. Applies coupon when eligible. |
+| `DELETE /api/cart/coupon` | Authenticated user | Working (automated) | None | `{ "cart": { ... } }` with discounts cleared. |
+| `POST /api/cart/estimate` | Authenticated user | Working (manual review) | Body `{ "shipping?", "taxRate?" }` (all optional) | `{ "subtotal", "discount", "shipping", "tax", "total", "currency" }`. Uses current cart totals. |
 
-## Cart (`/api/cart`)
-All cart endpoints require a logged-in customer.
-- `GET /api/cart` → `{ cart }`.
-- `POST /api/cart/items` → Add item. Body `{ productId, variantId?, quantity }`. Response `201 { cart }`.
-- `PATCH /api/cart/items/:productId` → Update quantity/variant. Body `{ quantity, variantId? }`. Response `{ cart }`.
-- `DELETE /api/cart/items/:productId` → Remove item. Response `{ cart }`.
-- `POST /api/cart/clear` → Clear cart. Response `{ cart }`.
-- `POST /api/cart/coupon` → Apply coupon. Body `{ code }`. Response `{ cart }`.
-- `DELETE /api/cart/coupon` → Remove coupon. Response `{ cart }`.
-- `POST /api/cart/estimate` → Shipping & tax estimate. Body `{ shipping?: number, taxRate?: number }`. Response `{ subtotal, discount, shipping, tax, total, currency }`.
+### Orders and returns (customer)
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `POST /api/orders` | Authenticated user | Broken | Body `{ "shippingAddress?", "billingAddress?", "shipping?", "taxRate?" }` | Fails with `TypeError: Right-hand side of 'instanceof' is not an object` because `mongoose.ClientSession` is no longer exported in Mongoose 8 (`reservation.service.js`). |
+| `GET /api/orders` | Authenticated user | Blocked (awaiting order fix) | Query `page?`, `limit?` | `{ "items": Order[], "total", "page", "pages" }` once orders can be created. |
+| `GET /api/orders/:id` | Authenticated user | Blocked (awaiting order fix) | Params `{ id }` | `{ "order": Order }`. |
+| `GET /api/orders/:id/invoice` | Authenticated user | Blocked (awaiting order fix) | None | HTTP 302 redirect to `invoiceUrl`, 404 if invoice missing. Depends on successful order creation. |
+| `GET /api/orders/:id/timeline` | Authenticated user | Blocked (awaiting order fix) | Query `page?`, `limit?` | `{ "items": TimelineEntry[], "total", "page", "pages" }`. |
+| `POST /api/orders/:id/returns` | Authenticated user | Blocked (awaiting order fix) | Body `{ "reason?" }` | `201 { "return": ReturnRequest }` when order exists and is paid. |
 
-## Orders (`/api/orders`)
-All routes require a signed-in customer.
-- `POST /api/orders`
-  - **Description**: Convert active cart into an order (idempotent).
-  - **Headers**: Optional `Idempotency-Key`.
-  - **Body**: `{ shippingAddress?, billingAddress?, shipping?, taxRate? }`.
-  - **Response**: `201 { order }`.
-- `GET /api/orders` → `{ items, total, page, pages }` (orders for current user).
-- `GET /api/orders/:id` → `{ order }`.
-- `GET /api/orders/:id/invoice` → Redirect (302) to hosted invoice URL.
-- `GET /api/orders/:id/timeline` → `{ items, total, page, pages }` timeline events.
-- `POST /api/orders/:id/returns` → Request a return/refund. Body `{ reason? }`. Response `201 { return }` or existing request.
+### Payments
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `POST /api/payments/stripe/intent` | Authenticated user | Blocked (Stripe not configured) | Body `{ "orderId" }` | Requires `STRIPE_SECRET_KEY`. With Stripe configured and a valid order, returns `{ "clientSecret": string }`. |
+| `POST /api/payments/stripe/webhook` | Public (Stripe) | Broken | Raw Stripe payload with `Stripe-Signature` header | `applyPaymentIntentSucceeded` hits the same `mongoose.ClientSession` bug when converting reservations to stock, so payment success events fail. |
 
-## Addresses (`/api/addresses`)
-All routes require authentication.
-- `GET /` → `{ items: Address[] }` (optional query `type=shipping|billing`).
-- `POST /` → Create address, body `{ fullName, line1, city, state, postalCode, country, phone?, type }`. Response `201 { address }`.
-- `GET /:id` → `{ address }`.
-- `PUT /:id` → Update address, same shape as create.
-- `DELETE /:id` → `{ success: true }`.
-- `POST /:id/default` → Mark address as default for its type. Response `{ address }`.
+### Media uploads
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `POST /api/uploads` | Admin (role) | Working (manual review) | Multipart form-data with field `file` | `201 { "url", "filename", "mimetype", "size" }`. Stores file under `uploads/`. |
+| `POST /api/uploads/cloudinary` | Admin (role) | Blocked (Cloudinary required) | Multipart form-data with field `file` | Returns 503 unless Cloudinary credentials are configured. On success responds with `{ "url", "publicId", "width", "height", "format", "bytes" }`. |
+| `POST /api/uploads/cloudinary/delete` | Admin (role) | Blocked (Cloudinary required) | Body `{ "publicId" }` | `{ "result": "ok" }` after cloud deletion. |
 
-## Payments (`/api/payments`)
-- `POST /api/payments/stripe/intent`
-  - **Description**: Create or reuse a Stripe PaymentIntent for an order.
-  - **Auth**: Bearer token.
-  - **Body**: `{ "orderId": string }`.
-  - **Response**: `{ clientSecret, paymentIntentId, requiresAction }` (depends on service configuration).
-- `POST /api/payments/stripe/webhook`
-  - **Description**: Stripe webhook endpoint (raw body, no auth). Handles `payment_intent.succeeded` events.
-  - **Headers**: `Stripe-Signature`.
-  - **Response**: `{ received: true }`.
+### Admin: users and roles
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/users` | Admin (role) | Working (manual review) | Query `q?`, `page?`, `limit?` | `{ "items": [{ id, name, email, roles, isActive }], "total", "page", "pages" }`. |
+| `GET /api/admin/users/:id` | Admin (role) | Working (manual review) | Params `{ id }` | `{ "user": { ... } }`. |
+| `PATCH /api/admin/users/:id` | Admin (role) | Working (manual review) | Body `{ "isActive?" }` | `{ "user": { ... } }`. |
+| `POST /api/admin/users/:id/promote` | Admin (role) | Working (manual review) | None | `{ "user": { ...roles updated... } }`. Adds `admin` role. |
+| `POST /api/admin/users/:id/demote` | Admin (role) | Working (manual review) | None | `{ "user": { ...roles updated... } }`. Removes `admin`, ensures at least `customer`. |
 
-## Uploads (`/api/uploads`)
-- `POST /api/uploads`
-  - **Description**: Local disk upload (field name `file`).
-  - **Auth**: Admin role.
-  - **Response**: `{ url, filename, mimetype, size }`.
-- `POST /api/uploads/cloudinary`
-  - **Description**: Upload buffer to Cloudinary (field `file`).
-  - **Auth**: Admin role.
-  - **Response**: `{ url, publicId, width, height, format, bytes }`.
-- `POST /api/uploads/cloudinary/delete`
-  - **Description**: Delete Cloudinary asset.
-  - **Auth**: Admin role.
-  - **Body**: `{ publicId: string }`.
-  - **Response**: `{ result: string }`.
+### Admin: metrics
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/metrics` | Admin (role) | Working (manual review) | None | `{ "usersTotal", "usersActive", "adminsCount", "productsCount", "ordersTotal", "ordersByStatus", "revenueLast7Days": [{ period, revenue, orders }] }`. |
 
-## Admin APIs (`/api/admin`)
-All routes below require an authenticated user with the `ADMIN` role.
+### Admin: orders
 
-### Users
-- `GET /api/admin/users` → List users (query `q`, `page`, `limit`). Response `{ items: [{ id, name, email, roles, isActive }], total, page, pages }`.
-- `GET /api/admin/users/:id` → `{ user }`.
-- `PATCH /api/admin/users/:id` → Body `{ isActive?: boolean }`. Response `{ user }`.
-- `POST /api/admin/users/:id/promote` → Adds `ADMIN` role. Response `{ user }`.
-- `POST /api/admin/users/:id/demote` → Removes `ADMIN` role. Response `{ user }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/orders` | Admin (role) | Blocked (awaiting order fix) | Query `status?`, `paymentStatus?`, `user?`, `from?`, `to?`, `page?`, `limit?` | `{ "items": Order[], "total", "page", "pages" }` once orders exist. |
+| `GET /api/admin/orders/:id` | Admin (role) | Blocked (awaiting order fix) | Params `{ id }` | `{ "order": Order }`. |
+| `PATCH /api/admin/orders/:id` | Admin (role) | Broken | Body `{ "status?", "paymentStatus?" }` | Cancelling an order calls `releaseOrderReservations`, which triggers the `mongoose.ClientSession` TypeError. Other updates depend on orders existing. |
 
-### Metrics
-- `GET /api/admin/metrics` → Aggregate counts `{ usersTotal, usersActive, adminsCount, productsCount, ordersTotal, ordersByStatus, revenueLast7Days }`.
+### Admin: coupons
 
-### Orders
-- `GET /api/admin/orders` → Query filters `status`, `paymentStatus`, `user`, `from`, `to`, pagination. Response `{ items, total, page, pages }`.
-- `GET /api/admin/orders/:id` → `{ order }`.
-- `PATCH /api/admin/orders/:id` → Body `{ status?, paymentStatus? }`. Response `{ order }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/coupons` | Admin (role) | Working (automated) | Query `q?`, `page?`, `limit?` | `{ "items": Coupon[], "total", "page", "pages" }`. |
+| `POST /api/admin/coupons` | Admin (role) | Working (automated) | Body `{ "code", "description?", "type": "percent"|"fixed", "value", "minSubtotal?", "includeCategories?", "excludeCategories?", "includeProducts?", "excludeProducts?", "perUserLimit?", "globalLimit?", "expiresAt?", "isActive?" }` | `201 { "coupon": Coupon }`. |
+| `GET /api/admin/coupons/:id` | Admin (role) | Working (automated) | Params `{ id }` | `{ "coupon": Coupon }`. |
+| `PUT /api/admin/coupons/:id` | Admin (role) | Working (automated) | Body same as create | `{ "coupon": Coupon }`. |
+| `DELETE /api/admin/coupons/:id` | Admin (role) | Working (automated) | None | `{ "success": true }`. |
 
-### Coupons
-- `GET /api/admin/coupons` → Search with `q`, pagination. Response `{ items, total, page, pages }`.
-- `POST /api/admin/coupons` → Body `{ code, type, value, minSubtotal?, includeCategories?, excludeCategories?, includeProducts?, excludeProducts?, perUserLimit?, globalLimit?, expiresAt?, isActive? }`. Response `201 { coupon }`.
-- `GET /api/admin/coupons/:id` → `{ coupon }`.
-- `PUT /api/admin/coupons/:id` → Update coupon (same fields as create). Response `{ coupon }`.
-- `DELETE /api/admin/coupons/:id` → `{ success: true }`.
+### Admin: currency rates
 
-### Currency Rates
-- `GET /api/admin/currency-rates` → Query optional `baseCurrency`. Response `{ baseCurrency, rates }`.
-- `POST /api/admin/currency-rates` → Body `{ baseCurrency?, currency, rate, source?, metadata? }`. Response `201 { rate }`.
-- `DELETE /api/admin/currency-rates/:currency` → Query optional `baseCurrency`. Response `{ success: true }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/currency-rates` | Admin (role) | Working (automated) | Query `baseCurrency?` | `{ "baseCurrency": string, "rates": Rate[] }`. |
+| `POST /api/admin/currency-rates` | Admin (role) | Working (automated) | Body `{ "baseCurrency?", "currency", "rate", "source?" }` | `201 { "rate": Rate }`. |
+| `DELETE /api/admin/currency-rates/:currency` | Admin (role) | Working (automated) | Query `baseCurrency?` | `{ "success": true }`. |
 
-### Inventory
-- `GET /api/admin/inventory/adjustments` → Filter `product`, `variant`, `reason`, `direction`, `locationId`, pagination. Response `{ items, total, page, pages }`.
-- `POST /api/admin/inventory/adjustments` → Body `{ productId, variantId?, locationId, qtyChange?, reservedChange?, reason, refId? }`. Response `201 { inventory }` (updated stock record).
-- `GET /api/admin/inventory` → List stock items. Query `product`, `variant`, `locationId`, pagination. Response `{ items, total, page, pages }`.
-- `GET /api/admin/inventory/low` → Low stock report. Query `threshold?`, pagination. Response `{ items, total, page, pages, threshold }`.
+### Admin: inventory and stock
 
-### Returns
-- `GET /api/admin/returns` → Query `status`, pagination. Response `{ items, total, page, pages }`.
-- `POST /api/admin/returns/:id/approve` → Body may include `{ items?, amount?, locationId? }`. Response `{ return, order, refund? }`.
-- `POST /api/admin/returns/:id/reject` → Response `{ return }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/inventory/adjustments` | Admin (role) | Working (manual review) | Query `product?`, `variant?`, `reason?`, `direction?`, `locationId?`, `page?`, `limit?` | `{ "items": Adjustment[], "total", "page", "pages" }`. |
+| `POST /api/admin/inventory/adjustments` | Admin (role) | Working (manual review) | Body `{ "productId", "variantId?", "locationId", "qtyChange?", "reservedChange?", "reason", "note?", "refId?" }` | `201 { "inventory": StockItem }`. |
+| `GET /api/admin/inventory` | Admin (role) | Working (manual review) | Query `product?`, `variant?`, `locationId?`, `page?`, `limit?` | `{ "items": StockItem[], "total", "page", "pages" }`. |
+| `GET /api/admin/inventory/low` | Admin (role) | Working (manual review) | Query `threshold?`, `page?`, `limit?` | `{ "items": StockItem[], "total", "page", "pages", "threshold" }`. |
 
-### Payments & Refunds
-- `GET /api/admin/transactions` → Query `order`, `provider`, `status`, pagination. Response `{ items, total, page, pages }`.
-- `GET /api/admin/transactions/:id` → `{ transaction }`.
-- `GET /api/admin/refunds` → Query `order`, `provider`, `status`, pagination. Response `{ items, total, page, pages }`.
-- `GET /api/admin/refunds/:id` → `{ refund }`.
+### Admin: returns
 
-### Shipments
-- `GET /api/admin/shipments` → Query `order`, pagination. Response `{ items, total, page, pages }`.
-- `POST /api/admin/orders/:id/shipments` → Body `{ carrier?, tracking?, service?, items? }`. Response `201 { shipment }`.
-- `GET /api/admin/shipments/:id` → `{ shipment }`.
-- `GET /api/admin/orders/:id/shipments` → `{ items, total, page, pages }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/returns` | Admin (role) | Blocked (awaiting order fix) | Query `status?`, `page?`, `limit?` | `{ "items": ReturnRequest[], "total", "page", "pages" }`. |
+| `POST /api/admin/returns/:id/approve` | Admin (role) | Working (manual review) | Optional body `{ "items?" [{ "product", "variant?", "quantity", "locationId?" }], "amount?", "locationId?" }` with optional `Idempotency-Key` | `{ "return": ReturnRequest, "order": Order, "refund?": Refund }`. Processes Stripe refund when configured and restocks via `adjustStockLevels`. |
+| `POST /api/admin/returns/:id/reject` | Admin (role) | Working (manual review) | None | `{ "return": ReturnRequest }`. |
 
-### Product Operations
-- `GET /api/admin/products` -> Paginated admin catalog search. Response `{ items, total, page, pages }`.
-- `GET /api/admin/products/:id` -> `{ product }`.
-- `POST /api/admin/products` -> Body `ProductInput`. Response `201 { product }`.
-- `PUT /api/admin/products/:id` (also `PATCH`) -> Body `Partial<ProductInput>`. Response `{ product }`.
-- `DELETE /api/admin/products/:id` -> `{ success: true }`.
-- `POST /api/admin/products/import` → Body `{ items: ProductInput[] }`. Response `201 { inserted, failed, errors: [{ name, message }] }`.
-- `GET /api/admin/products/export` → Download all products (`format=json|csv`).
-- `POST /api/admin/products/price-bulk` → Body `{ factorPercent, filter?: { q?, category? } }`. Response `{ matched, modified, factor }`.
-- `POST /api/admin/products/category-bulk` → Body `{ categoryId, productIds: string[] }`. Response `{ matched, modified }`.
-- `POST /api/admin/products/variants-matrix` → Body `{ options, base? }`. Response `{ count, variants }`.
-- `GET /api/admin/products/:id/references` → Counts references `{ inventory, reviews, orders, shipments }`.
+### Admin: payments and refunds
 
-### Reports
-- `GET /api/admin/reports/sales` → Query `from`, `to`, `groupBy=day|week|month`. Response `{ groupBy, series: [{ period, revenue, orders }] }`.
-- `GET /api/admin/reports/top-products` → Query `from`, `to`, `by=quantity|revenue`, `limit`. Response `{ by, items: [{ product, name, quantity, revenue }] }`.
-- `GET /api/admin/reports/top-customers` → Query `from`, `to`, `by=revenue|orders`, `limit`. Response `{ by, items: [{ user, orders, revenue }] }`.
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/transactions` | Admin (role) | Blocked (awaiting order fix) | Query `order?`, `provider?`, `status?`, `page?`, `limit?` | `{ "items": PaymentTransaction[], "total", "page", "pages" }`. |
+| `GET /api/admin/transactions/:id` | Admin (role) | Blocked (awaiting order fix) | Params `{ id }` | `{ "transaction": PaymentTransaction }`. |
+| `GET /api/admin/refunds` | Admin (role) | Blocked (awaiting order fix) | Query `order?`, `provider?`, `status?`, `page?`, `limit?` | `{ "items": Refund[], "total", "page", "pages" }`. |
+| `GET /api/admin/refunds/:id` | Admin (role) | Blocked (awaiting order fix) | Params `{ id }` | `{ "refund": Refund }`. |
 
-### Admin Category & Brand Mirrors
-Admin routes mirror the public CRUD but live under `/api/admin/categories` and `/api/admin/brands`, sharing request/response shapes. Use them when building admin UIs.
+### Admin: shipments
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/shipments` | Admin (role) | Blocked (awaiting order fix) | Query `order?`, `page?`, `limit?` | `{ "items": Shipment[], "total", "page", "pages" }`. |
+| `GET /api/admin/shipments/:id` | Admin (role) | Blocked (awaiting order fix) | Params `{ id }` | `{ "shipment": Shipment }`. |
+| `POST /api/admin/orders/:id/shipments` | Admin (role) | Blocked (awaiting order fix) | Body `{ "carrier?", "tracking?", "service?", "items?" }` | `201 { "shipment": Shipment }`. Defaults to order items when `items` omitted. |
+| `GET /api/admin/orders/:id/shipments` | Admin (role) | Blocked (awaiting order fix) | Query `page?`, `limit?` | `{ "items": Shipment[], "total", "page", "pages" }`. |
 
-## Reservations (`/api/admin/reservations`)
-- `GET /api/admin/reservations` → Requires admin role. Query `orderId`, `productId`, `status`, pagination. Response `{ items, total, page, pages }`.
-- `POST /api/admin/reservations/:orderId/release` → Body `{ reason?: string, notes?: string }`. Response `{ released }` (count of reservations released).
+### Admin: products under /api/admin
 
----
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/products` | Admin (role) | Working (manual review) | Query `q?`, `category?`, `page?`, `limit?` | Same payload as public `/api/products`, restricted to admins. |
+| `GET /api/admin/products/:id` | Admin (role) | Working (manual review) | Params `{ id }` | `{ "product": ProductDetail }`. |
+| `POST /api/admin/products` | Admin (role) | Working (manual review) | Same body as `/api/products` create | `201 { "product": Product }`. |
+| `PUT /api/admin/products/:id` | Admin (role) | Working (manual review) | Same body as `/api/products` update | `{ "product": Product }`. |
+| `PATCH /api/admin/products/:id` | Admin (role) | Working (manual review) | Same body as `/api/products` update | `{ "product": Product }`. |
+| `DELETE /api/admin/products/:id` | Admin (role) | Working (manual review) | None | `{ "success": true }`. |
 
-## Stripe Webhook Testing
-When testing locally, expose `/api/payments/stripe/webhook` through a tunneling tool (e.g., `stripe listen`). Ensure the raw body middleware remains in place; do not send `application/json` with a parsed body.
+### Admin: product tooling
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `POST /api/admin/products/import` | Admin (role) | Working (manual review) | Body `{ "items": ProductInput[] }` | `201 { "inserted", "failed", "errors": [{ "name", "message" }] }`. Validates category leaf nodes. |
+| `GET /api/admin/products/export` | Admin (role) | Working (manual review) | Query `format?=json|csv` | Streams all products as JSON or CSV with appropriate download headers. |
+| `POST /api/admin/products/price-bulk` | Admin (role) | Working (manual review) | Body `{ "factorPercent", "filter?": { "q?", "category?" } }` | `{ "matched": number, "modified": number, "factor": number }`. |
+| `POST /api/admin/products/category-bulk` | Admin (role) | Working (manual review) | Body `{ "categoryId", "productIds": string[] }` | `{ "matched": number, "modified": number }`. |
+| `POST /api/admin/products/variants-matrix` | Admin (role) | Working (manual review) | Body `{ "options": { "<attribute>": string[] }, "base?": { "price?", "skuPrefix?" } }` | `{ "count": number, "variants": VariantPreview[] }`. |
+| `GET /api/admin/products/:id/references` | Admin (role) | Working (manual review) | Params `{ id }` | `{ "inventory", "reviews", "orders", "shipments" }` counts for delete-impact analysis. |
+| `GET /api/admin/brands/:id/references` | Admin (role) | Working (manual review) | Params `{ id }` | `{ "products": number }`. |
+
+### Admin: reports
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/reports/sales` | Admin (role) | Working (manual review) | Query `from?`, `to?`, `groupBy?=day|week|month` | `{ "groupBy": string, "series": [{ "period", "revenue", "orders" }] }`. |
+| `GET /api/admin/reports/top-products` | Admin (role) | Working (manual review) | Query `from?`, `to?`, `by?=quantity|revenue`, `limit?` | `{ "by": string, "items": [{ "product", "name", "quantity", "revenue" }] }`. |
+| `GET /api/admin/reports/top-customers` | Admin (role) | Working (manual review) | Query `from?`, `to?`, `by?=revenue|orders`, `limit?` | `{ "by": string, "items": [{ "user", "orders", "revenue" }] }`. |
+
+### Admin: category and brand mirrors
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET|POST|PUT|DELETE /api/admin/categories[...]` | Admin (role) | Working (manual review) | Identical payloads to `/api/categories` routes | Responses mirror the public category endpoints, with admin-only access. |
+| `GET|POST|PUT|DELETE /api/admin/brands[...]` | Admin (role) | Working (manual review) | Identical payloads to `/api/brands` routes | Responses mirror the public brand endpoints, with admin-only access. |
+
+### Admin: reservations
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/reservations` | Admin (role) | Working (manual review) | Query `orderId?`, `productId?`, `status?`, `page?`, `limit?` | `{ "items": Reservation[], "total", "page", "pages" }`. Useful for debugging holds. |
+| `POST /api/admin/reservations/:orderId/release` | Admin (role) | Broken | Body `{ "reason?", "notes?" }` | Fails with the same `mongoose.ClientSession` TypeError when releasing reservations. |
