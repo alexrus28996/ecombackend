@@ -41,6 +41,7 @@ export const MESSAGES = Object.freeze({
   [ERROR_CODES.INSUFFICIENT_STOCK]: 'Insufficient stock',
 
   [ERROR_CODES.ORDER_NOT_FOUND]: 'Order not found',
+  [ERROR_CODES.PAYMENT_METHOD_UNAVAILABLE]: 'Payment method not available for this order',
 
   [ERROR_CODES.CURRENCY_UNSUPPORTED]: 'Unsupported currency {currency}',
   [ERROR_CODES.FX_RATE_NOT_FOUND]: 'FX rate not configured for {currency}',

@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { config } from '../../config/index.js';
+import { PAYMENT_METHOD } from '../../config/constants.js';
 import { Order } from '../orders/order.model.js';
 import { PaymentEvent } from './payment-event.model.js';
 import { PaymentTransaction } from './payment-transaction.model.js';
@@ -24,6 +25,9 @@ export async function createPaymentIntentForOrder(orderId, userId) {
   if (!stripe) throw errors.internal('PAYMENTS_DISABLED');
   const order = await Order.findOne({ _id: orderId, user: userId });
   if (!order) throw errors.notFound(ERROR_CODES.ORDER_NOT_FOUND);
+  if (order.paymentMethod === PAYMENT_METHOD.COD) {
+    throw errors.badRequest(ERROR_CODES.PAYMENT_METHOD_UNAVAILABLE, null, { message: 'Cash on delivery orders do not use Stripe' });
+  }
   if (order.paymentStatus === 'paid') return { clientSecret: null, alreadyPaid: true };
 
   const amount = toMinorUnits(order.total, order.currency);

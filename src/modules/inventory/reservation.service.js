@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 import { Reservation } from './reservation.model.js';
 import { quotePickingPlan, allocatePickingPlan } from './services/picking.service.js';
 import { adjustStockLevels } from './services/stock.service.js';
@@ -23,6 +23,17 @@ function normalizeItems(items) {
   }));
 }
 
+function isClientSession(candidate) {
+  if (!candidate) return false;
+  const ClientSession = mongoose.mongo?.ClientSession;
+  if (ClientSession && typeof ClientSession === 'function') {
+    return candidate instanceof ClientSession;
+  }
+  return typeof candidate === 'object'
+    && typeof candidate.startTransaction === 'function'
+    && typeof candidate.commitTransaction === 'function';
+}
+
 export async function reserveOrderItems({
   orderId,
   userId,
@@ -37,7 +48,7 @@ export async function reserveOrderItems({
   const normalized = normalizeItems(items);
   if (!normalized.length) return [];
   const expiryTimestamp = resolveExpiry(expiresInMinutes);
-  const existingSession = session instanceof mongoose.ClientSession ? session : null;
+  const existingSession = isClientSession(session) ? session : null;
   const run = async (txn) => {
     const planResult = await quotePickingPlan({ shipTo, items: normalized, splitAllowed });
     if (!planResult.plan.length || planResult.fillRate <= 0) {
@@ -78,14 +89,18 @@ export async function reserveOrderItems({
     const result = await newSession.withTransaction(run);
     return result;
   } finally {
-    await newSession.endSession();
+    try {
+      await newSession.endSession();
+    } catch (err) {
+      logger.warn({ err }, 'failed to end reservation session');
+    }
   }
 }
 
 export async function releaseOrderReservations(orderId, { reason = 'cancelled', session = null, notes } = {}) {
   if (!orderId) return 0;
   const id = typeof orderId === 'string' ? new mongoose.Types.ObjectId(orderId) : orderId;
-  const sess = session instanceof mongoose.ClientSession ? session : null;
+  const sess = isClientSession(session) ? session : null;
   const reservations = await Reservation.find({ orderId: id, status: 'active' }).session(sess).lean();
   if (!reservations.length) return 0;
   const adjustments = reservations.map((res) => ({
@@ -109,7 +124,7 @@ export async function releaseOrderReservations(orderId, { reason = 'cancelled', 
 
 export async function convertReservationsToStock(orderId, { byUserId, session = null, note } = {}) {
   if (!orderId) return 0;
-  const sess = session instanceof mongoose.ClientSession ? session : null;
+  const sess = isClientSession(session) ? session : null;
   const reservations = await Reservation.find({ orderId, status: 'active' }).session(sess);
   if (!reservations.length) return 0;
   const adjustments = reservations.map((res) => ({

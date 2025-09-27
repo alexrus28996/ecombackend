@@ -1,6 +1,6 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 import { config } from '../../config/index.js';
-import { ORDER_STATUS, PAYMENT_STATUS } from '../../config/constants.js';
+import { ORDER_STATUS, PAYMENT_STATUS, PAYMENT_METHOD } from '../../config/constants.js';
 
 // Snapshot of ordered item (denormalized)
 const orderItemSchema = new mongoose.Schema({
@@ -39,6 +39,7 @@ const orderSchema = new mongoose.Schema(
     currency: { type: String, default: () => config.DEFAULT_CURRENCY },
     status: { type: String, enum: Object.values(ORDER_STATUS), default: ORDER_STATUS.PENDING },
     paymentStatus: { type: String, enum: Object.values(PAYMENT_STATUS), default: PAYMENT_STATUS.UNPAID },
+    paymentMethod: { type: String, enum: Object.values(PAYMENT_METHOD), default: PAYMENT_METHOD.PREPAID },
     paymentProvider: { type: String },
     transactionId: { type: String },
     paidAt: { type: Date },

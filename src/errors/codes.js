@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Enumerates machine-readable error codes used in API responses.
  */
 export const ERROR_CODES = Object.freeze({
@@ -46,6 +46,7 @@ export const ERROR_CODES = Object.freeze({
 
   // Orders
   ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  PAYMENT_METHOD_UNAVAILABLE: 'PAYMENT_METHOD_UNAVAILABLE',
 
   // Pricing
   CURRENCY_UNSUPPORTED: 'CURRENCY_UNSUPPORTED',

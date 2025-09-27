@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Common role names used for access control.
  */
 export const ROLES = Object.freeze({
@@ -27,6 +27,14 @@ export const ORDER_STATUS = Object.freeze({
   DELIVERED: 'delivered',
   CANCELLED: 'cancelled',
   REFUNDED: 'refunded'
+});
+
+/**
+ * Payment methods customers can choose at checkout.
+ */
+export const PAYMENT_METHOD = Object.freeze({
+  PREPAID: 'prepaid',
+  COD: 'cod'
 });
 
 /**

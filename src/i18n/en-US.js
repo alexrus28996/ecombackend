@@ -12,6 +12,7 @@ export const enUS = {
   },
   timeline: {
     order_created: 'Order created',
+    payment_method_cod: 'Cash on delivery selected',
     invoice_generated: 'Invoice {invoiceNumber} generated',
     payment_succeeded_stripe: 'Payment succeeded (Stripe)',
     return_approved: 'Return approved and refunded',

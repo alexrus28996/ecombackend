@@ -1,4 +1,5 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
+import { PAYMENT_METHOD } from '../../../config/constants.js';
 
 const address = z.object({
   fullName: z.string().optional(),
@@ -16,6 +17,7 @@ export const createOrderSchema = {
     shippingAddress: address.optional(),
     billingAddress: address.optional(),
     shipping: z.coerce.number().nonnegative().default(0),
-    taxRate: z.coerce.number().min(0).max(1).default(0)
+    taxRate: z.coerce.number().min(0).max(1).default(0),
+    paymentMethod: z.enum([PAYMENT_METHOD.PREPAID, PAYMENT_METHOD.COD]).default(PAYMENT_METHOD.PREPAID)
   })
 };

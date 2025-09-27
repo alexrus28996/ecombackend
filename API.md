@@ -27,7 +27,7 @@ Command executed: `npm test`.
 | Area | Status | Evidence / Notes |
 | --- | --- | --- |
 | Authentication, JWT rotation, address book, cart CRUD, coupon pricing, FX conversion, catalog CRUD | Working (automated) | Covered by Jest suites in `__tests__/auth.test.js`, `addresses.test.js`, `cart.test.js`, `coupons.test.js`, `currency.test.js`, `products.test.js`, `pricing.test.js`, `jwt.test.js`, `errors.test.js`. |
-| Cart to order conversion, inventory reservations, Stripe payment success, admin reservation release | Broken | `POST /api/orders` and related flows throw `TypeError: Right-hand side of 'instanceof' is not an object` because Mongoose 8 no longer exposes `mongoose.ClientSession`. Offending guards are in `src/modules/inventory/reservation.service.js` lines 40, 88, and 112. |
+| Cart to order conversion, inventory reservations, Stripe payment success, admin reservation release | Working (automated) | Covered by `__tests__/orders.test.js` after replacing the legacy `mongoose.ClientSession` guard. Adds cash-on-delivery selection alongside Stripe flows. |
 | Product review mutations (create/update/delete/moderation) | Broken | `Product.castObjectId` is invoked in `src/modules/reviews/review.service.js:61` but the model does not define the helper, causing `TypeError: Product.castObjectId is not a function`. |
 | Remaining admin operations (metrics, reports, stock adjustments, imports, uploads, shipments) | Working (manual review) | Code paths inspected; no automated coverage yet. |
 

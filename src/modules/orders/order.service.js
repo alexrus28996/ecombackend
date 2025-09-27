@@ -3,7 +3,7 @@ import { Cart } from '../cart/cart.model.js';
 import { Product } from '../catalog/product.model.js';
 import { Order } from './order.model.js';
 import { errors, ERROR_CODES } from '../../errors/index.js';
-import { CART_STATUS } from '../../config/constants.js';
+import { CART_STATUS, PAYMENT_METHOD } from '../../config/constants.js';
 import { getAvailableStock } from '../inventory/services/stock.service.js';
 import { generateInvoicePdf } from './invoice.service.js';
 import { deliverEmail } from '../../utils/mailer.js';
@@ -21,11 +21,13 @@ const logger = getLogger().child({ module: 'orders-service' });
  * Create an order from the user's active cart with stock checks.
  * Uses a transaction if available (replica set).
  * @param {string} userId
- * @param {{ shippingAddress?: object, shipping?: number, taxRate?: number }} payload
+ * @param {{ shippingAddress?: object, billingAddress?: object, shipping?: number, taxRate?: number, paymentMethod?: string }} payload
  */
-export async function createOrderFromCart(userId, { shippingAddress, billingAddress, shipping, taxRate }) {
+export async function createOrderFromCart(userId, { shippingAddress, billingAddress, shipping, taxRate, paymentMethod } = {}) {
   const cart = await Cart.findOne({ user: userId, status: CART_STATUS.ACTIVE });
   if (!cart || cart.items.length === 0) throw errors.badRequest(ERROR_CODES.CART_EMPTY);
+
+  const method = paymentMethod === PAYMENT_METHOD.COD ? PAYMENT_METHOD.COD : PAYMENT_METHOD.PREPAID;
 
   const runWorkflow = async (sess) => {
     // Resolve addresses from defaults if not provided
@@ -95,6 +97,8 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
         taxRate: typeof taxRate === 'number' ? taxRate : undefined,
         total,
         currency: cart.currency,
+        paymentMethod: method,
+        paymentProvider: method === PAYMENT_METHOD.COD ? 'cod' : undefined,
         shippingAddress: resolvedShipping,
         billingAddress: resolvedBilling
       }
@@ -108,6 +112,9 @@ export async function createOrderFromCart(userId, { shippingAddress, billingAddr
     // Generate invoice
     const created = orderDocs[0];
     await addTimeline(created._id, { type: 'created', message: t('timeline.order_created'), userId });
+    if (method === PAYMENT_METHOD.COD) {
+      await addTimeline(created._id, { type: 'payment_method_selected', message: t('timeline.payment_method_cod'), userId });
+    }
     const { invoiceNumber, invoiceUrl } = await generateInvoicePdf(created);
     created.invoiceNumber = invoiceNumber;
     created.invoiceUrl = invoiceUrl;
