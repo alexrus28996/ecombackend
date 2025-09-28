@@ -124,6 +124,62 @@ export function buildOpenApiSpec() {
             createdAt: { type: 'string', format: 'date-time' }
           }
         },
+        AuditLog: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            user: { type: 'string', nullable: true },
+            method: { type: 'string' },
+            path: { type: 'string' },
+            status: { type: 'integer' },
+            ip: { type: 'string', nullable: true },
+            requestId: { type: 'string', nullable: true },
+            query: { type: 'object' },
+            params: { type: 'object' },
+            body: { type: 'object' },
+            meta: { type: 'object' },
+            createdAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        LedgerEntry: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            productId: { type: 'string' },
+            variantId: { type: 'string', nullable: true },
+            locationId: { type: 'string' },
+            qty: { type: 'number' },
+            direction: { type: 'string' },
+            reason: { type: 'string' },
+            refType: { type: 'string', nullable: true },
+            refId: { type: 'string', nullable: true },
+            occurredAt: { type: 'string', format: 'date-time' },
+            actor: { type: 'string', nullable: true }
+          }
+        },
+        PaymentEvent: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            provider: { type: 'string' },
+            eventId: { type: 'string' },
+            type: { type: 'string', nullable: true },
+            order: { type: 'string', nullable: true },
+            receivedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        OrderTimelineEntry: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            order: { type: 'string' },
+            user: { type: 'string', nullable: true },
+            type: { type: 'string' },
+            message: { type: 'string', nullable: true },
+            meta: { type: 'object', nullable: true },
+            createdAt: { type: 'string', format: 'date-time' }
+          }
+        },
         PickingPlanLeg: {
           type: 'object',
           properties: {
@@ -1486,6 +1542,188 @@ export function buildOpenApiSpec() {
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { isActive: { type: 'boolean' } } } } } },
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/products/{id}/restore`]: {
+        post: {
+          summary: 'Restore soft-deleted product',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' } }
+        }
+      },
+      [`${api}/admin/audit`]: {
+        get: {
+          summary: 'List admin audit logs',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            '200': {
+              description: 'OK',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      items: { type: 'array', items: { $ref: '#/components/schemas/AuditLog' } },
+                      total: { type: 'integer' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      [`${api}/admin/audit/{id}`]: {
+        get: {
+          summary: 'Get a single audit log entry',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: {
+            '200': {
+              description: 'OK',
+              content: { 'application/json': { schema: { type: 'object', properties: { log: { $ref: '#/components/schemas/AuditLog' } } } } }
+            },
+            '404': { description: 'Not Found' }
+          }
+        }
+      },
+      [`${api}/admin/inventory/locations`]: {
+        get: {
+          summary: 'List inventory locations',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            '200': {
+              description: 'OK',
+              content: { 'application/json': { schema: { type: 'object', properties: { items: { type: 'array', items: { $ref: '#/components/schemas/Location' } }, total: { type: 'integer' } } } } }
+            }
+          }
+        },
+        post: {
+          summary: 'Create inventory location',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Location' } } } },
+          responses: { '201': { description: 'Created' } }
+        }
+      },
+      [`${api}/admin/inventory/locations/{id}`]: {
+        get: {
+          summary: 'Get inventory location',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        },
+        put: {
+          summary: 'Update inventory location',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Location' } } } },
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        },
+        delete: {
+          summary: 'Soft delete location',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/inventory/locations/{id}/restore`]: {
+        post: {
+          summary: 'Restore location',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/inventory/transfers`]: {
+        get: {
+          summary: 'List transfer orders',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            '200': {
+              description: 'OK',
+              content: { 'application/json': { schema: { type: 'object', properties: { items: { type: 'array', items: { $ref: '#/components/schemas/TransferOrder' } }, total: { type: 'integer' } } } } }
+            }
+          }
+        },
+        post: {
+          summary: 'Create transfer order',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TransferOrder' } } } },
+          responses: { '201': { description: 'Created' } }
+        }
+      },
+      [`${api}/admin/inventory/transfers/{id}`]: {
+        get: {
+          summary: 'Get transfer order',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        },
+        put: {
+          summary: 'Update transfer order',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TransferOrder' } } } },
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/inventory/transfers/{id}/status`]: {
+        patch: {
+          summary: 'Transition transfer order status',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string' } }, required: ['status'] } } } },
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/inventory/ledger`]: {
+        get: {
+          summary: 'List stock ledger entries',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            '200': {
+              description: 'OK',
+              content: { 'application/json': { schema: { type: 'object', properties: { items: { type: 'array', items: { $ref: '#/components/schemas/LedgerEntry' } }, total: { type: 'integer' } } } } }
+            }
+          }
+        }
+      },
+      [`${api}/admin/inventory/ledger/{id}`]: {
+        get: {
+          summary: 'Get stock ledger entry',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/payment-events`]: {
+        get: {
+          summary: 'List payment events',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            '200': {
+              description: 'OK',
+              content: { 'application/json': { schema: { type: 'object', properties: { items: { type: 'array', items: { $ref: '#/components/schemas/PaymentEvent' } }, total: { type: 'integer' } } } } }
+            }
+          }
+        }
+      },
+      [`${api}/admin/payment-events/{id}`]: {
+        get: {
+          summary: 'Get payment event',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/orders/{id}/timeline`]: {
+        post: {
+          summary: 'Add order timeline entry',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { type: { type: 'string' }, message: { type: 'string' }, meta: { type: 'object' } }, required: ['type', 'message'] } } } },
+          responses: { '201': { description: 'Created' }, '404': { description: 'Not Found' } }
         }
       },
       [`${api}/admin/metrics`]: {

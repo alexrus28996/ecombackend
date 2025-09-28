@@ -60,6 +60,8 @@ These endpoints drive the storefront landing, search, and product detail experie
 | `POST` | `/api/products/:id/reviews` | Auth required; `{ "rating": 1-5, "title?", "body?" }` | `201 { "review": Review }`
 | `DELETE` | `/api/products/:id/reviews/:reviewId` | Auth; owner or admin | `{ "success": true }`
 
+> Public product endpoints automatically exclude items that have been soft-deleted (`deletedAt` set).
+
 **Product payloads**
 
 `ProductSummary` → `{ _id, name, slug, price, compareAtPrice?, currency, images, category: { _id, name, slug }, brand?: { _id, name, slug }, vendor?, tags?, rating?: { average, count } }`
@@ -127,13 +129,23 @@ Prioritized to match day-to-day operations for support teams.
 
 `UserSummary` → `{ _id, name, email, roles, isActive, isVerified, createdAt, lastLoginAt? }`
 
+### Audit logs
+
+| Method | Path | Request | Response |
+| --- | --- | --- | --- |
+| `GET` | `/api/admin/audit` | Query `user?`, `method?`, `status?`, `path?`, `from?`, `to?`, pagination | `{ "items": [AuditLog], "total", "page", "pages" }` *(payloads redact sensitive keys like passwords/tokens)* |
+| `GET` | `/api/admin/audit/:id` | — | `{ "log": AuditLog }` |
+
+`AuditLog` → `{ _id, user?, method, path, status, ip?, requestId?, query, params, body, meta: { durationMs? }, createdAt }`
+
 ### Products & Categories
 
 | Method | Path | Request | Response |
 | --- | --- | --- | --- |
-| `POST` | `/api/products` | `ProductInput` (name, description?, longDescription?, price, compareAtPrice?, costPrice?, currency, images[], attributes{}, categoryId, brandId?, vendor?, taxClass?, weight?, weightUnit?, dimensions?, tags[], metaTitle?, metaDescription?, metaKeywords[], variants[]) — arrays are trimmed & deduped. | `201 { "product": ProductDetail }`
-| `PUT` | `/api/products/:id` | Partial `ProductInput` | `{ "product": ProductDetail }`
-| `DELETE` | `/api/products/:id` | — | `{ "success": true }` (fails with `409` if referenced)
+| `POST` | `/api/admin/products` | `ProductInput` (name, description?, longDescription?, price, compareAtPrice?, costPrice?, currency, images[], attributes{}, categoryId, brandId?, vendor?, taxClass?, weight?, weightUnit?, dimensions?, tags[], metaTitle?, metaDescription?, metaKeywords[], variants[]) — arrays are trimmed & deduped. | `201 { "product": ProductDetail }`
+| `PUT` | `/api/admin/products/:id` | Partial `ProductInput` | `{ "product": ProductDetail }`
+| `DELETE` | `/api/admin/products/:id` | — Soft delete; sets `deletedAt` and flags product inactive (fails with `409` if referenced) | `{ "success": true }`
+| `POST` | `/api/admin/products/:id/restore` | — | `{ "product": ProductDetail }`
 | `POST` | `/api/categories` | `{ "name", "parent?", "description?" }` | `201 { "category": Category }`
 | `PUT` | `/api/categories/:id` | Same fields | `{ "category": Category }`
 | `DELETE` | `/api/categories/:id` | — (soft delete sets `deletedAt`, `isActive=false`, `status="inactive"`) | `{ "success": true }`
@@ -157,6 +169,49 @@ Prioritized to match day-to-day operations for support teams.
 
 `Reservation` → `{ _id, product, variant?, quantity, order?, expiresAt, status, createdAt }`
 
+### Payment Events
+
+| Method | Path | Request | Response |
+| --- | --- | --- | --- |
+| `GET` | `/api/admin/payment-events` | Query `provider?`, `type?`, `from?`, `to?`, pagination | `{ "items": [PaymentEvent], "total", "page", "pages" }` |
+| `GET` | `/api/admin/payment-events/:id` | — | `{ "event": PaymentEvent }` |
+
+`PaymentEvent` → `{ _id, provider, eventId, type?, order?, receivedAt }`
+
+#### Locations
+
+| Method | Path | Request | Response |
+| --- | --- | --- | --- |
+| `GET` | `/api/admin/inventory/locations` | Query `type?`, `active?`, `region?`, `country?`, `state=active|deleted|all`, pagination | `{ "items": [Location], "total", "page", "pages" }` |
+| `POST` | `/api/admin/inventory/locations` | `{ "code", "name", "type?", "geo?", "priority?", "active?", "metadata?" }` | `201 { "location": Location }` |
+| `GET` | `/api/admin/inventory/locations/:id` | — | `{ "location": Location }` *(includes soft-deleted when requested by ID)* |
+| `PUT` | `/api/admin/inventory/locations/:id` | Partial fields above | `{ "location": Location }` |
+| `DELETE` | `/api/admin/inventory/locations/:id` | — Soft delete | `{ "deleted": true }` |
+| `POST` | `/api/admin/inventory/locations/:id/restore` | — | `{ "location": Location }` |
+
+`Location` → `{ _id, code, name, type, geo?, priority, active, metadata?, deletedAt?, createdAt, updatedAt }`
+
+#### Transfer orders
+
+| Method | Path | Request | Response |
+| --- | --- | --- | --- |
+| `GET` | `/api/admin/inventory/transfers` | Query `status?`, `fromLocationId?`, `toLocationId?`, `from?`, `to?`, pagination | `{ "items": [TransferOrder], "total", "page", "pages" }` |
+| `POST` | `/api/admin/inventory/transfers` | `{ "fromLocationId", "toLocationId", "lines": [{ "productId", "variantId?", "qty" }], "metadata?" }` | `201 { "transfer": TransferOrder }` *(created in `DRAFT` state)* |
+| `GET` | `/api/admin/inventory/transfers/:id` | — | `{ "transfer": TransferOrder }` |
+| `PUT` | `/api/admin/inventory/transfers/:id` | Update locations, lines, or metadata while `status=DRAFT` | `{ "transfer": TransferOrder }` |
+| `PATCH` | `/api/admin/inventory/transfers/:id/status` | `{ "status": "REQUESTED"|"IN_TRANSIT"|"RECEIVED"|"CANCELLED" }` | `{ "transfer": TransferOrder }` |
+
+`TransferOrder` → `{ _id, fromLocationId, toLocationId, lines: [{ productId, variantId?, qty }], status, metadata?, createdAt, updatedAt }`
+
+#### Stock ledger
+
+| Method | Path | Request | Response |
+| --- | --- | --- | --- |
+| `GET` | `/api/admin/inventory/ledger` | Query `productId?`, `variantId?`, `locationId?`, `direction?`, `from?`, `to?`, pagination | `{ "items": [LedgerEntry], "total", "page", "pages" }` |
+| `GET` | `/api/admin/inventory/ledger/:id` | — | `{ "entry": LedgerEntry }` |
+
+`LedgerEntry` → `{ _id, productId, variantId?, locationId, qty, direction, reason, refType?, refId?, occurredAt, actor?, metadata?, createdAt }`
+
 ### Order Administration
 
 | Method | Path | Request | Response |
@@ -166,6 +221,7 @@ Prioritized to match day-to-day operations for support teams.
 | `PATCH` | `/api/admin/orders/:id` | `{ "status?", "fulfillmentStatus?", "tracking?", "notes?" }` | `{ "order": OrderDetail }`
 | `POST` | `/api/admin/orders/:id/fulfill` | `{ "items": [{ "orderItemId", "quantity" }], "carrier?", "tracking?" }` | `{ "order": OrderDetail }`
 | `POST` | `/api/admin/orders/:id/refund` | `{ "items": [{ "orderItemId", "amount", "reason?" }], "note?" }` | `{ "order": OrderDetail, "refund": Refund }`
+| `POST` | `/api/admin/orders/:id/timeline` | `{ "type", "message", "meta?" }` | `201 { "success": true }`
 
 `Refund` → `{ _id, order, items, totalAmount, currency, status, createdAt }`
 
@@ -191,10 +247,17 @@ Prioritized to match day-to-day operations for support teams.
 
 ## Object Shape Appendix
 
-- **Category** → `{ _id, name, slug, parent?, description?, breadcrumbs?, createdAt, updatedAt }`
+- **ProductDetail** → `{ _id, name, slug, price, compareAtPrice?, costPrice?, currency, description?, longDescription?, vendor?, taxClass?, weight?, weightUnit, dimensions?, tags[], metaTitle?, metaDescription?, metaKeywords[], brand?, category?, attributes?, variants[], deletedAt?, createdAt, updatedAt }`
+- **Category** → `{ _id, name, slug, parent?, description?, breadcrumbs?, deletedAt?, createdAt, updatedAt }`
 - **Review** → `{ _id, product, user, rating, title?, body?, isApproved, createdAt }`
 - **CartItem** → `{ product, variant?, name, price, currency, quantity, image? }`
 - **OrderSummary** → `{ _id, number, status, paymentStatus, fulfillmentStatus, totals: { grandTotal, currency }, createdAt }`
 - **ReturnRequest** → `{ _id, order, status, items, notes?, createdAt }`
+- **AuditLog** → `{ _id, user?, method, path, status, ip?, requestId?, query, params, body, meta?, createdAt }`
+- **Location** → `{ _id, code, name, type, geo?, priority, active, metadata?, deletedAt?, createdAt, updatedAt }`
+- **TransferOrder** → `{ _id, fromLocationId, toLocationId, lines: [{ productId, variantId?, qty }], status, metadata?, createdAt, updatedAt }`
+- **LedgerEntry** → `{ _id, productId, variantId?, locationId, qty, direction, reason, refType?, refId?, occurredAt, actor?, metadata?, createdAt }`
+- **PaymentEvent** → `{ _id, provider, eventId, type?, order?, receivedAt }`
+- **OrderTimelineEntry** → `{ _id, order, user?, type, message?, meta?, from?, to?, createdAt }`
 
 This reference stays aligned with `src/docs/spec.js` (OpenAPI generator) and the Postman collection in `docs/postman_collection.json`. When in doubt, consult Swagger at runtime for field-level constraints.

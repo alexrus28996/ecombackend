@@ -29,17 +29,18 @@ const locationSchema = new mongoose.Schema(
       of: mongoose.Schema.Types.Mixed,
       default: () => new Map()
     },
-    deletedAt: { type: Date }
+    deletedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
 
-locationSchema.index({ code: 1 }, { unique: true, collation: { locale: 'en', strength: 2 } });
+locationSchema.index({ code: 1 }, { unique: true, collation: { locale: 'en', strength: 2 }, partialFilterExpression: { deletedAt: null } });
 locationSchema.index(
   { 'geo.country': 1, 'geo.region': 1, 'geo.pincode': 1 },
   { unique: true, sparse: true }
 );
 locationSchema.index({ active: 1, priority: -1 });
+locationSchema.index({ deletedAt: 1 });
 
 locationSchema.methods.isDropship = function isDropship() {
   return this.type === 'DROPSHIP';

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authRequired, requireRole } from '../../../middleware/auth.js';
 import { validate } from '../../../middleware/validate.js';
+import checkPermission from '../../../middleware/checkPermission.js';
+import { PERMISSIONS } from '../../../utils/permissions.js';
 import { ROLES } from '../../../config/constants.js';
 import {
   listUsers as listUsersController,
@@ -55,10 +57,48 @@ import {
   getProduct as getProductController,
   createProduct as createProductController,
   updateProduct as updateProductController,
-  deleteProduct as deleteProductController
+  deleteProduct as deleteProductController,
+  restoreProduct as restoreProductController
 } from '../controllers/products.controller.js';
+import { listAuditLogs as listAuditLogsController, getAuditLog as getAuditLogController } from '../controllers/audit.controller.js';
+import { listPaymentEvents, getPaymentEvent } from '../controllers/payment-events.controller.js';
+import { createTimelineEntry } from '../controllers/order-timeline.controller.js';
+import {
+  createLocationController,
+  listLocationsController,
+  updateLocationController,
+  deleteLocationController,
+  getLocationController,
+  restoreLocationController
+} from '../../../modules/inventory/controllers/location.controller.js';
+import {
+  createTransferOrderController,
+  updateTransferOrderController,
+  transitionTransferOrderController,
+  listTransferOrdersController,
+  getTransferOrderController
+} from '../../../modules/inventory/controllers/transfer.controller.js';
+import {
+  listLedgerController,
+  getLedgerEntryController
+} from '../../../modules/inventory/controllers/ledger.controller.js';
 import { productCreateSchema, productUpdateSchema } from '../validation/products.validation.js';
 import { idParam, updateUserSchema, updateOrderSchema, couponSchema, adjustSchema, importSchema, priceBulkSchema, categoryBulkSchema, shipmentCreateSchema, variantsMatrixSchema, returnApproveSchema, currencyRateListSchema, currencyRateSchema, currencyRateDeleteSchema, permissionsReplaceSchema, permissionsModifySchema } from '../validation/admin.validation.js';
+import { auditListQuery, auditIdParam } from '../validation/audit.validation.js';
+import {
+  locationCreateSchema,
+  locationUpdateSchema,
+  locationIdParam,
+  locationListQuery,
+  transferCreateSchema,
+  transferUpdateSchema,
+  transferStatusSchema,
+  transferListQuery,
+  ledgerListQuery,
+  ledgerIdParam
+} from '../validation/inventory.validation.js';
+import { paymentEventsListSchema, paymentEventIdSchema } from '../validation/payment-events.validation.js';
+import { orderTimelineCreateSchema } from '../validation/order-timeline.validation.js';
 import { idempotency } from '../../../middleware/idempotency.js';
 import {
   listCategories as listCategoriesController,
@@ -90,10 +130,36 @@ router.patch('/users/:id/permissions/remove', authRequired, requireRole(ROLES.AD
 // Metrics
 router.get('/metrics', authRequired, requireRole(ROLES.ADMIN), metricsController);
 
+// Audit logs
+router.get(
+  '/audit',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.AUDIT_VIEW),
+  validate(auditListQuery),
+  listAuditLogsController
+);
+router.get(
+  '/audit/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.AUDIT_VIEW),
+  validate(auditIdParam),
+  getAuditLogController
+);
+
 // Orders
 router.get('/orders', authRequired, requireRole(ROLES.ADMIN), listOrdersController);
 router.get('/orders/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getOrderController);
 router.patch('/orders/:id', authRequired, requireRole(ROLES.ADMIN), validate(updateOrderSchema), updateOrderController);
+router.post(
+  '/orders/:id/timeline',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.ORDERS_TIMELINE_WRITE),
+  validate(orderTimelineCreateSchema),
+  createTimelineEntry
+);
 
 // Coupons
 router.get('/coupons', authRequired, requireRole(ROLES.ADMIN), listCouponsController);
@@ -112,6 +178,110 @@ router.get('/inventory/adjustments', authRequired, requireRole(ROLES.ADMIN), lis
 router.post('/inventory/adjustments', authRequired, requireRole(ROLES.ADMIN), validate(adjustSchema), createAdjustmentController);
 router.get('/inventory', authRequired, requireRole(ROLES.ADMIN), listInventoryController);
 router.get('/inventory/low', authRequired, requireRole(ROLES.ADMIN), lowStockController);
+router.get(
+  '/inventory/locations',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_LOCATION_VIEW),
+  validate(locationListQuery),
+  listLocationsController
+);
+router.post(
+  '/inventory/locations',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_LOCATION_CREATE),
+  validate(locationCreateSchema),
+  createLocationController
+);
+router.get(
+  '/inventory/locations/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_LOCATION_VIEW),
+  validate(locationIdParam),
+  getLocationController
+);
+router.put(
+  '/inventory/locations/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_LOCATION_EDIT),
+  validate({ ...locationIdParam, ...locationUpdateSchema }),
+  updateLocationController
+);
+router.delete(
+  '/inventory/locations/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_LOCATION_DELETE),
+  validate(locationIdParam),
+  deleteLocationController
+);
+router.post(
+  '/inventory/locations/:id/restore',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_LOCATION_EDIT),
+  validate(locationIdParam),
+  restoreLocationController
+);
+router.get(
+  '/inventory/transfers',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_TRANSFER_VIEW),
+  validate(transferListQuery),
+  listTransferOrdersController
+);
+router.post(
+  '/inventory/transfers',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_TRANSFER_CREATE),
+  validate(transferCreateSchema),
+  createTransferOrderController
+);
+router.get(
+  '/inventory/transfers/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_TRANSFER_VIEW),
+  validate(idParam),
+  getTransferOrderController
+);
+router.put(
+  '/inventory/transfers/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_TRANSFER_EDIT),
+  validate({ ...idParam, ...transferUpdateSchema }),
+  updateTransferOrderController
+);
+router.patch(
+  '/inventory/transfers/:id/status',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_TRANSFER_EDIT),
+  validate(transferStatusSchema),
+  transitionTransferOrderController
+);
+router.get(
+  '/inventory/ledger',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_LEDGER_VIEW),
+  validate(ledgerListQuery),
+  listLedgerController
+);
+router.get(
+  '/inventory/ledger/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.INVENTORY_LEDGER_VIEW),
+  validate(ledgerIdParam),
+  getLedgerEntryController
+);
 
 // Returns
 router.get('/returns', authRequired, requireRole(ROLES.ADMIN), listReturnsController);
@@ -123,6 +293,22 @@ router.get('/transactions', authRequired, requireRole(ROLES.ADMIN), listTransact
 router.get('/transactions/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getTransactionController);
 router.get('/refunds', authRequired, requireRole(ROLES.ADMIN), listRefundsAdminController);
 router.get('/refunds/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getRefundAdminController);
+router.get(
+  '/payment-events',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PAYMENTS_EVENTS_VIEW),
+  validate(paymentEventsListSchema),
+  listPaymentEvents
+);
+router.get(
+  '/payment-events/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PAYMENTS_EVENTS_VIEW),
+  validate(paymentEventIdSchema),
+  getPaymentEvent
+);
 
 // Shipments
 router.get('/shipments', authRequired, requireRole(ROLES.ADMIN), listShipmentsController);
@@ -137,6 +323,7 @@ router.post('/products', authRequired, requireRole(ROLES.ADMIN), validate(produc
 router.put('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate({ ...idParam, ...productUpdateSchema }), updateProductController);
 router.patch('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate({ ...idParam, ...productUpdateSchema }), updateProductController);
 router.delete('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), deleteProductController);
+router.post('/products/:id/restore', authRequired, requireRole(ROLES.ADMIN), validate(idParam), restoreProductController);
 
 // Products admin helpers
 router.post('/products/import', authRequired, requireRole(ROLES.ADMIN), validate(importSchema), importProductsController);

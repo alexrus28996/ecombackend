@@ -20,8 +20,8 @@ async function assertVariantBelongs(productId, variantId) {
 }
 
 async function getLocationOrThrow(locationId) {
-  const location = await Location.findOne({ _id: locationId, deletedAt: { $exists: false } });
-  if (!location) throw errors.notFound(ERROR_CODES.RESOURCE_NOT_FOUND, 'Location not found');
+  const location = await Location.findOne({ _id: locationId, deletedAt: null });
+  if (!location) throw errors.notFound(ERROR_CODES.INVENTORY_LOCATION_NOT_FOUND, 'Location not found');
   return location;
 }
 
@@ -297,41 +297,95 @@ export async function reconcileStock({
   });
 }
 
+function normalizeTransferLines(lines) {
+  return lines.map((line) => {
+    if (!line?.productId || !Number.isFinite(Number(line.qty))) {
+      throw errors.badRequest(ERROR_CODES.INVALID_INPUT, 'Transfer line requires productId and qty');
+    }
+    if (Number(line.qty) <= 0) {
+      throw errors.badRequest(ERROR_CODES.INVALID_INPUT, 'Transfer qty must be greater than 0');
+    }
+    return {
+      productId: line.productId,
+      variantId: line.variantId || null,
+      qty: Math.abs(Number(line.qty))
+    };
+  });
+}
+
 export async function createTransferOrder({ fromLocationId, toLocationId, lines, metadata, actor, session }) {
   if (!Array.isArray(lines) || !lines.length) {
     throw errors.badRequest(ERROR_CODES.INVALID_INPUT, 'transfer lines required');
   }
+  if (String(fromLocationId) === String(toLocationId)) {
+    throw errors.badRequest(ERROR_CODES.INVALID_INPUT, 'from and to locations must differ');
+  }
+  const normalized = normalizeTransferLines(lines);
   return runWithSession(session, async (txn) => {
     await getLocationOrThrow(fromLocationId);
     await getLocationOrThrow(toLocationId);
-    for (const line of lines) {
+    for (const line of normalized) {
       await assertVariantBelongs(line.productId, line.variantId);
     }
-    const transfer = await TransferOrder.create([
-      { fromLocationId, toLocationId, lines, status: 'REQUESTED', metadata }
+    const [transfer] = await TransferOrder.create([
+      { fromLocationId, toLocationId, lines: normalized, status: 'DRAFT', metadata: metadata || {} }
     ], { session: txn });
-    logger.info({ event: 'transfer.created', transferId: transfer[0]._id, fromLocationId, toLocationId, actor }, 'Transfer created');
-    return transfer[0].toObject();
+    logger.info({ event: 'transfer.created', transferId: transfer._id, fromLocationId, toLocationId, actor }, 'Transfer created');
+    return transfer.toObject();
+  });
+}
+
+export async function updateTransferOrder({ id, fromLocationId, toLocationId, lines, metadata, session }) {
+  if (fromLocationId && toLocationId && String(fromLocationId) === String(toLocationId)) {
+    throw errors.badRequest(ERROR_CODES.INVALID_INPUT, 'from and to locations must differ');
+  }
+  return runWithSession(session, async (txn) => {
+    const transfer = await TransferOrder.findById(id).session(txn);
+    if (!transfer) throw errors.notFound(ERROR_CODES.TRANSFER_ORDER_NOT_FOUND, 'Transfer order not found');
+    if (transfer.status !== 'DRAFT') {
+      throw errors.badRequest(ERROR_CODES.INVALID_STATE, 'Only DRAFT transfers can be updated');
+    }
+    if (fromLocationId) {
+      await getLocationOrThrow(fromLocationId);
+      transfer.fromLocationId = fromLocationId;
+    }
+    if (toLocationId) {
+      await getLocationOrThrow(toLocationId);
+      transfer.toLocationId = toLocationId;
+    }
+    if (Array.isArray(lines)) {
+      if (!lines.length) throw errors.badRequest(ERROR_CODES.INVALID_INPUT, 'transfer lines required');
+      const normalized = normalizeTransferLines(lines);
+      for (const line of normalized) {
+        await assertVariantBelongs(line.productId, line.variantId);
+      }
+      transfer.lines = normalized;
+    }
+    if (typeof metadata !== 'undefined') {
+      transfer.metadata = metadata;
+    }
+    await transfer.save({ session: txn });
+    return transfer.toObject();
   });
 }
 
 export async function transitionTransferOrder({ id, nextStatus, actor, session }) {
   const allowed = new Map([
+    ['DRAFT', ['REQUESTED', 'CANCELLED']],
     ['REQUESTED', ['IN_TRANSIT', 'CANCELLED']],
     ['IN_TRANSIT', ['RECEIVED', 'CANCELLED']]
   ]);
   return runWithSession(session, async (txn) => {
     const transfer = await TransferOrder.findById(id).session(txn);
-    if (!transfer) throw errors.notFound(ERROR_CODES.RESOURCE_NOT_FOUND, 'Transfer order not found');
-    if (transfer.status === 'CANCELLED' || transfer.status === 'RECEIVED') {
-      throw errors.badRequest(ERROR_CODES.INVALID_STATE, 'Cannot transition completed transfer');
-    }
-    const allowedNext = allowed.get(transfer.status) || [];
+    if (!transfer) throw errors.notFound(ERROR_CODES.TRANSFER_ORDER_NOT_FOUND, 'Transfer order not found');
+    const previousStatus = transfer.status;
+    const allowedNext = allowed.get(previousStatus) || [];
     if (!allowedNext.includes(nextStatus)) {
-      throw errors.badRequest(ERROR_CODES.INVALID_STATE, `Transition from ${transfer.status} to ${nextStatus} not allowed`);
+      throw errors.badRequest(ERROR_CODES.INVALID_STATE, `Transition from ${previousStatus} to ${nextStatus} not allowed`);
     }
     transfer.status = nextStatus;
     await transfer.save({ session: txn });
+
     if (nextStatus === 'IN_TRANSIT') {
       const adjustments = transfer.lines.map((line) => ({
         productId: line.productId,
@@ -344,6 +398,7 @@ export async function transitionTransferOrder({ id, nextStatus, actor, session }
       }));
       await adjustStockLevels({ adjustments, reason: 'TRANSFER', actor, refType: 'TRANSFER', refId: String(transfer._id), session: txn });
     }
+
     if (nextStatus === 'RECEIVED') {
       const adjustments = transfer.lines.map((line) => ({
         productId: line.productId,
@@ -356,16 +411,36 @@ export async function transitionTransferOrder({ id, nextStatus, actor, session }
       }));
       await adjustStockLevels({ adjustments, reason: 'TRANSFER', actor, refType: 'TRANSFER', refId: String(transfer._id), session: txn });
     }
+
+    if (nextStatus === 'CANCELLED' && previousStatus === 'IN_TRANSIT') {
+      // If cancelling after stock moved, restore to source location
+      const adjustments = transfer.lines.map((line) => ({
+        productId: line.productId,
+        variantId: line.variantId,
+        locationId: transfer.fromLocationId,
+        qtyChange: Math.abs(line.qty),
+        reason: 'TRANSFER',
+        refType: 'TRANSFER',
+        refId: String(transfer._id)
+      }));
+      await adjustStockLevels({ adjustments, reason: 'TRANSFER', actor, refType: 'TRANSFER', refId: String(transfer._id), session: txn });
+    }
+
     logger.info({ event: 'transfer.transition', transferId: transfer._id, status: nextStatus, actor }, 'Transfer transitioned');
     return transfer.toObject();
   });
 }
 
-export async function listTransferOrders({ status, fromLocationId, toLocationId, page = 1, limit = 20 } = {}) {
+export async function listTransferOrders({ status, fromLocationId, toLocationId, page = 1, limit = 20, from, to } = {}) {
   const filter = {};
   if (status) filter.status = status;
   if (fromLocationId) filter.fromLocationId = fromLocationId;
   if (toLocationId) filter.toLocationId = toLocationId;
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = new Date(from);
+    if (to) filter.createdAt.$lte = new Date(to);
+  }
   const l = Math.min(100, Math.max(1, Number(limit) || 20));
   const p = Math.max(1, Number(page) || 1);
   const skip = (p - 1) * l;
@@ -374,4 +449,46 @@ export async function listTransferOrders({ status, fromLocationId, toLocationId,
     TransferOrder.countDocuments(filter)
   ]);
   return { items, total, page: p, pages: Math.ceil(total / l) || 1 };
+}
+
+export async function getTransferOrderById(id) {
+  const doc = await TransferOrder.findById(id).lean();
+  if (!doc) throw errors.notFound(ERROR_CODES.TRANSFER_ORDER_NOT_FOUND, 'Transfer order not found');
+  return doc;
+}
+
+export async function listStockLedgerEntries({
+  productId,
+  variantId,
+  locationId,
+  direction,
+  from,
+  to,
+  page = 1,
+  limit = 50
+} = {}) {
+  const filter = {};
+  if (productId) filter.productId = productId;
+  if (variantId) filter.variantId = variantId;
+  if (locationId) filter.locationId = locationId;
+  if (direction) filter.direction = direction;
+  if (from || to) {
+    filter.occurredAt = {};
+    if (from) filter.occurredAt.$gte = new Date(from);
+    if (to) filter.occurredAt.$lte = new Date(to);
+  }
+  const l = Math.min(200, Math.max(1, Number(limit) || 50));
+  const p = Math.max(1, Number(page) || 1);
+  const skip = (p - 1) * l;
+  const [items, total] = await Promise.all([
+    StockLedger.find(filter).sort({ occurredAt: -1 }).skip(skip).limit(l).lean(),
+    StockLedger.countDocuments(filter)
+  ]);
+  return { items, total, page: p, pages: Math.ceil(total / l) || 1 };
+}
+
+export async function getStockLedgerEntry(id) {
+  const doc = await StockLedger.findById(id).lean();
+  if (!doc) throw errors.notFound(ERROR_CODES.LEDGER_ENTRY_NOT_FOUND, 'Ledger entry not found');
+  return doc;
 }

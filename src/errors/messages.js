@@ -3,10 +3,14 @@ import { ERROR_CODES } from './codes.js';
 // Default English messages. Centralize all user-facing strings here.
 export const MESSAGES = Object.freeze({
   [ERROR_CODES.VALIDATION_ERROR]: 'Validation error',
+  [ERROR_CODES.INVALID_INPUT]: 'Invalid input',
+  [ERROR_CODES.INVALID_STATE]: 'Invalid state transition',
   [ERROR_CODES.ROUTE_NOT_FOUND]: 'Route {method} {path} not found',
   [ERROR_CODES.FORBIDDEN]: 'Forbidden',
   [ERROR_CODES.AUTH_HEADER_MISSING]: 'Authorization header missing',
   [ERROR_CODES.TOKEN_INVALID]: 'Invalid or expired token',
+  [ERROR_CODES.RESOURCE_NOT_FOUND]: 'Resource not found',
+  [ERROR_CODES.RESOURCE_ALREADY_EXISTS]: 'Resource already exists',
 
   [ERROR_CODES.INVALID_CREDENTIALS]: 'Invalid credentials',
   [ERROR_CODES.EMAIL_IN_USE]: 'Email already in use',
@@ -34,6 +38,7 @@ export const MESSAGES = Object.freeze({
   [ERROR_CODES.PRODUCT_HAS_REVIEWS]: 'Product has reviews',
   [ERROR_CODES.PRODUCT_IN_ORDERS]: 'Product exists in orders',
   [ERROR_CODES.PRODUCT_IN_SHIPMENTS]: 'Product exists in shipments',
+  [ERROR_CODES.AUDIT_LOG_NOT_FOUND]: 'Audit log not found',
 
   [ERROR_CODES.CART_EMPTY]: 'Cart is empty',
   [ERROR_CODES.ITEM_NOT_IN_CART]: 'Item not in cart',
@@ -48,7 +53,11 @@ export const MESSAGES = Object.freeze({
   [ERROR_CODES.FX_RATE_NOT_FOUND]: 'FX rate not configured for {currency}',
   [ERROR_CODES.FX_RATE_SELF_REFERENCE]: 'Cannot set FX rate for base currency {currency}',
 
-  [ERROR_CODES.PAYMENTS_NOT_CONFIGURED]: 'Payments not configured'
+  [ERROR_CODES.PAYMENTS_NOT_CONFIGURED]: 'Payments not configured',
+  [ERROR_CODES.PAYMENT_EVENT_NOT_FOUND]: 'Payment event not found',
+  [ERROR_CODES.INVENTORY_LOCATION_NOT_FOUND]: 'Inventory location not found',
+  [ERROR_CODES.TRANSFER_ORDER_NOT_FOUND]: 'Transfer order not found',
+  [ERROR_CODES.LEDGER_ENTRY_NOT_FOUND]: 'Ledger entry not found'
 });
 
 /**

@@ -1,4 +1,11 @@
-import { listProducts as svcList, getProduct as svcGet, createProduct as svcCreate, updateProduct as svcUpdate, deleteProduct as svcDelete } from '../../../modules/catalog/product.service.js';
+import {
+  listProducts as svcList,
+  getProduct as svcGet,
+  createProduct as svcCreate,
+  updateProduct as svcUpdate,
+  deleteProduct as svcDelete,
+  restoreProduct as svcRestore
+} from '../../../modules/catalog/product.service.js';
 import { Category } from '../../../modules/catalog/category.model.js';
 import { Brand } from '../../../modules/catalog/brand.model.js';
 import { errors, ERROR_CODES } from '../../../errors/index.js';
@@ -69,4 +76,9 @@ export async function updateProduct(req, res) {
 export async function deleteProduct(req, res) {
   const result = await svcDelete(req.params.id);
   res.json(result);
+}
+
+export async function restoreProduct(req, res) {
+  const product = await svcRestore(req.params.id);
+  res.json({ product });
 }

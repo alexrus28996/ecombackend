@@ -19,7 +19,7 @@ const dimensionsSchema = new mongoose.Schema({
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    slug: { type: String, unique: true },
+    slug: { type: String, index: true },
     description: { type: String },
     longDescription: { type: String },
     price: { type: Number, required: true, min: 0 },
@@ -45,7 +45,8 @@ const productSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     metaTitle: { type: String },
     metaDescription: { type: String },
-    metaKeywords: { type: [String], default: [] }
+    metaKeywords: { type: [String], default: [] },
+    deletedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
@@ -62,7 +63,8 @@ productSchema.pre('save', function (next) {
 
 // Helpful indexes for catalog queries
 productSchema.index({ category: 1 });
-// slug already has unique constraint on field definition; avoid duplicate index
 productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ slug: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+productSchema.index({ deletedAt: 1 });
 
 export const Product = mongoose.models.Product || mongoose.model('Product', productSchema);

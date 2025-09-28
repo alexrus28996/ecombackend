@@ -79,7 +79,7 @@ function sanitizeProductData(data, { isUpdate = false } = {}) {
  * @param {{ q?: string, limit?: number, page?: number }} params
  */
 export async function listProducts({ q, category, limit = config.API_DEFAULT_PAGE_SIZE, page = 1 }) {
-  const filter = {};
+  const filter = { deletedAt: null };
   if (q) {
     filter.$or = [
       { name: { $regex: q, $options: 'i' } },
@@ -94,7 +94,9 @@ export async function listProducts({ q, category, limit = config.API_DEFAULT_PAG
  * Get a single product by id or throw NOT_FOUND.
  */
 export async function getProduct(id) {
-  const productDoc = await Product.findById(id).populate('category', 'name slug').populate('brand', 'name slug');
+  const productDoc = await Product.findOne({ _id: id, deletedAt: null })
+    .populate('category', 'name slug')
+    .populate('brand', 'name slug');
   if (!productDoc) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
   const [attributeConfig, variantDocs] = await Promise.all([
     listAttributesWithOptions(id),
@@ -115,16 +117,20 @@ export async function getProduct(id) {
  */
 export async function createProduct(data) {
   const product = await Product.create(sanitizeProductData(data));
-  return product;
+  return product.toObject();
 }
 
 /**
  * Update a product by id or throw NOT_FOUND.
  */
 export async function updateProduct(id, data) {
-  const product = await Product.findByIdAndUpdate(id, sanitizeProductData(data, { isUpdate: true }), { new: true });
+  const product = await Product.findOneAndUpdate(
+    { _id: id, deletedAt: null },
+    sanitizeProductData(data, { isUpdate: true }),
+    { new: true }
+  );
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
-  return product;
+  return product.toObject();
 }
 
 /**
@@ -133,6 +139,7 @@ export async function updateProduct(id, data) {
 export async function deleteProduct(id) {
   const product = await Product.findById(id);
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
+  if (product.deletedAt) return { success: true };
   // Prevent delete if referenced by inventory/reviews/orders/shipments
   const [{ StockItem }] = await Promise.all([import('../inventory/models/stock-item.model.js')]);
   const invCount = await StockItem.countDocuments({ productId: id });
@@ -146,6 +153,17 @@ export async function deleteProduct(id) {
   const { Shipment } = await import('../orders/shipment.model.js');
   const shpCount = await Shipment.countDocuments({ 'items.product': id });
   if (shpCount > 0) throw errors.conflict(ERROR_CODES.PRODUCT_IN_SHIPMENTS);
-  await Product.deleteOne({ _id: id });
+  product.deletedAt = new Date();
+  product.isActive = false;
+  await product.save();
   return { success: true };
+}
+
+export async function restoreProduct(id) {
+  const product = await Product.findById(id);
+  if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
+  product.deletedAt = null;
+  if (typeof product.isActive === 'boolean') product.isActive = true;
+  await product.save();
+  return product.toObject();
 }
