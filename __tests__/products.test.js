@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { createProduct, listProducts, getProduct, updateProduct, deleteProduct } from '../src/modules/catalog/product.service.js';
 import { Category } from '../src/modules/catalog/category.model.js';
+import { ERROR_CODES } from '../src/errors/index.js';
 import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
 describe('Products service CRUD', () => {
@@ -42,6 +43,48 @@ describe('Products service CRUD', () => {
 
     const list2 = await listProducts({ q: 'belt', limit: 10, page: 1 });
     expect(list2.total).toBe(0);
+  });
+
+  test('enforces SKU uniqueness for active products', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+
+    const first = await createProduct({
+      name: 'Hat Alpha',
+      price: 25,
+      currency: 'USD',
+      category: cat._id,
+      sku: 'hat-alpha'
+    });
+    expect(first.sku).toBe('HAT-ALPHA');
+
+    await expect(
+      createProduct({
+        name: 'Cap Beta',
+        price: 18,
+        currency: 'USD',
+        category: cat._id,
+        sku: 'HAT-alpha'
+      })
+    ).rejects.toMatchObject({ code: ERROR_CODES.SKU_IN_USE });
+
+    const second = await createProduct({
+      name: 'Scarf Gamma',
+      price: 30,
+      currency: 'USD',
+      category: cat._id,
+      sku: 'SCARF-GAMMA'
+    });
+
+    await expect(updateProduct(second._id, { sku: 'hat-alpha' })).rejects.toMatchObject({
+      code: ERROR_CODES.SKU_IN_USE
+    });
+
+    await deleteProduct(first._id);
+
+    const updated = await updateProduct(second._id, { sku: 'hat-alpha' });
+    expect(updated.sku).toBe('HAT-ALPHA');
+
+    await deleteProduct(second._id);
   });
 });
 

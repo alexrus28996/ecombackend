@@ -49,6 +49,20 @@ function sanitizeProductData(data, { isUpdate = false } = {}) {
     else delete sanitized.metaKeywords;
   }
 
+  if (Object.prototype.hasOwnProperty.call(sanitized, 'sku')) {
+    if (sanitized.sku === null) {
+      sanitized.sku = null;
+    } else if (typeof sanitized.sku === 'string') {
+      const trimmed = sanitized.sku.trim();
+      sanitized.sku = trimmed === '' ? null : trimmed.toUpperCase();
+    } else if (typeof sanitized.sku === 'undefined') {
+      delete sanitized.sku;
+    } else {
+      const coerced = String(sanitized.sku).trim();
+      sanitized.sku = coerced === '' ? null : coerced.toUpperCase();
+    }
+  }
+
   if (Object.prototype.hasOwnProperty.call(sanitized, 'dimensions') && sanitized.dimensions) {
     const dimensions = { ...sanitized.dimensions };
     const hasSizeValues = ['length', 'width', 'height'].some((key) =>
@@ -72,6 +86,14 @@ function sanitizeProductData(data, { isUpdate = false } = {}) {
   }
 
   return sanitized;
+}
+
+async function assertSkuAvailable(sku, ignoreId) {
+  if (typeof sku !== 'string' || sku.length === 0) return;
+  const query = { sku, deletedAt: null };
+  if (ignoreId) query._id = { $ne: ignoreId };
+  const existing = await Product.findOne(query).lean();
+  if (existing) throw errors.conflict(ERROR_CODES.SKU_IN_USE);
 }
 
 /**
@@ -116,7 +138,9 @@ export async function getProduct(id) {
  * Create a new product.
  */
 export async function createProduct(data) {
-  const product = await Product.create(sanitizeProductData(data));
+  const payload = sanitizeProductData(data);
+  await assertSkuAvailable(payload.sku);
+  const product = await Product.create(payload);
   return product.toObject();
 }
 
@@ -124,9 +148,11 @@ export async function createProduct(data) {
  * Update a product by id or throw NOT_FOUND.
  */
 export async function updateProduct(id, data) {
+  const payload = sanitizeProductData(data, { isUpdate: true });
+  await assertSkuAvailable(payload.sku, id);
   const product = await Product.findOneAndUpdate(
     { _id: id, deletedAt: null },
-    sanitizeProductData(data, { isUpdate: true }),
+    payload,
     { new: true }
   );
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);

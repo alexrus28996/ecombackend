@@ -65,6 +65,10 @@ productSchema.pre('save', function (next) {
 productSchema.index({ category: 1 });
 productSchema.index({ name: 'text', description: 'text' });
 productSchema.index({ slug: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+productSchema.index(
+  { sku: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null, sku: { $exists: true, $nin: [null, ''] } } }
+);
 productSchema.index({ deletedAt: 1 });
 
 export const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
