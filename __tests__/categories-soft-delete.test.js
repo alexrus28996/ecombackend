@@ -1,11 +1,15 @@
 import { jest } from '@jest/globals';
+import mongoose from 'mongoose';
 import {
   createCategory,
   listCategories,
   getCategory,
   deleteCategory,
-  restoreCategory
+  restoreCategory,
+  updateCategory
 } from '../src/modules/catalog/category.service.js';
+import checkPermission from '../src/middleware/checkPermission.js';
+import { PERMISSIONS } from '../src/utils/permissions.js';
 import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
 describe('Category soft delete behaviour', () => {
@@ -22,6 +26,14 @@ describe('Category soft delete behaviour', () => {
 
   afterAll(async () => {
     await disconnectIfNeeded(shouldSkip);
+  });
+
+  test('permission middleware enforces category delete scope', () => {
+    const middleware = checkPermission(PERMISSIONS.CATEGORY_DELETE);
+    const req = { user: { roles: [], permissions: [] } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    middleware(req, res, () => {});
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   test('soft delete hides from public listings and restore brings it back', async () => {
@@ -54,5 +66,16 @@ describe('Category soft delete behaviour', () => {
 
     const afterRestore = await listCategories({});
     expect(afterRestore.total).toBe(1);
+  });
+
+  test('rejects invalid parent assignments', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    await expect(updateCategory(category._id, { parent: category._id })).rejects.toThrow('Category cannot be its own parent');
+  });
+
+  test('restore non-existent category throws 404', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    const fakeId = new mongoose.Types.ObjectId().toString();
+    await expect(restoreCategory(fakeId)).rejects.toThrow('Category not found');
   });
 });

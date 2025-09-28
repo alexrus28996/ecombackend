@@ -129,39 +129,41 @@ Prioritized to match day-to-day operations for support teams.
 
 `UserSummary` → `{ _id, name, email, roles, isActive, isVerified, createdAt, lastLoginAt? }`
 
+> **Permissions**: Tables that include a *Permission* column list the granular scope required in addition to authentication. Users with the `admin` role bypass these checks, but granting the scope lets you delegate to support or warehouse teams without full admin access.
+
 ### Audit logs
 
-| Method | Path | Request | Response |
-| --- | --- | --- | --- |
-| `GET` | `/api/admin/audit` | Query `user?`, `method?`, `status?`, `path?`, `from?`, `to?`, pagination | `{ "items": [AuditLog], "total", "page", "pages" }` *(payloads redact sensitive keys like passwords/tokens)* |
-| `GET` | `/api/admin/audit/:id` | — | `{ "log": AuditLog }` |
+| Method | Path | Request | Response | Permission |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/audit` | Query `user?`, `method?`, `status?`, `path?`, `from?`, `to?`, pagination | `{ "items": [AuditLog], "total", "page", "pages" }` *(payloads redact sensitive keys like passwords/tokens)* | `audit:view` |
+| `GET` | `/api/admin/audit/:id` | — | `{ "log": AuditLog }` | `audit:view` |
 
 `AuditLog` → `{ _id, user?, method, path, status, ip?, requestId?, query, params, body, meta: { durationMs? }, createdAt }`
 
 ### Products & Categories
 
-| Method | Path | Request | Response |
-| --- | --- | --- | --- |
-| `POST` | `/api/admin/products` | `ProductInput` (name, description?, longDescription?, price, compareAtPrice?, costPrice?, currency, images[], attributes{}, categoryId, brandId?, vendor?, taxClass?, weight?, weightUnit?, dimensions?, tags[], metaTitle?, metaDescription?, metaKeywords[], variants[]) — arrays are trimmed & deduped. | `201 { "product": ProductDetail }`
-| `PUT` | `/api/admin/products/:id` | Partial `ProductInput` | `{ "product": ProductDetail }`
-| `DELETE` | `/api/admin/products/:id` | — Soft delete; sets `deletedAt` and flags product inactive (fails with `409` if referenced) | `{ "success": true }`
-| `POST` | `/api/admin/products/:id/restore` | — | `{ "product": ProductDetail }`
-| `POST` | `/api/categories` | `{ "name", "parent?", "description?" }` | `201 { "category": Category }`
-| `PUT` | `/api/categories/:id` | Same fields | `{ "category": Category }`
-| `DELETE` | `/api/categories/:id` | — (soft delete sets `deletedAt`, `isActive=false`, `status="inactive"`) | `{ "success": true }`
-| `POST` | `/api/admin/categories/:id/restore` | — | `{ "category": Category }`
+| Method | Path | Request | Response | Permission |
+| --- | --- | --- | --- | --- |
+| `POST` | `/api/admin/products` | `ProductInput` (name, description?, longDescription?, price, compareAtPrice?, costPrice?, currency, images[], attributes{}, categoryId, brandId?, vendor?, taxClass?, weight?, weightUnit?, dimensions?, tags[], metaTitle?, metaDescription?, metaKeywords[], variants[]) — arrays are trimmed & deduped. | `201 { "product": ProductDetail }` | `product:create` |
+| `PUT` | `/api/admin/products/:id` | Partial `ProductInput` | `{ "product": ProductDetail }` | `product:edit` |
+| `DELETE` | `/api/admin/products/:id` | — Soft delete; sets `deletedAt` and flags product inactive (fails with `409` if referenced) | `{ "success": true }` | `product:delete` |
+| `POST` | `/api/admin/products/:id/restore` | — | `{ "product": ProductDetail }` | `product:edit` |
+| `POST` | `/api/categories` | `{ "name", "parent?", "description?" }` | `201 { "category": Category }` | `category:create` |
+| `PUT` | `/api/categories/:id` | Same fields | `{ "category": Category }` | `category:edit` |
+| `DELETE` | `/api/categories/:id` | — (soft delete sets `deletedAt`, `isActive=false`, `status="inactive"`) | `{ "success": true }` | `category:delete` |
+| `POST` | `/api/admin/categories/:id/restore` | — | `{ "category": Category }` | `category:restore` |
 
 > Admin listing endpoints accept `includeDeleted=true` to surface soft-deleted categories for restoration workflows.
 
 ### Inventory & Reservations
 
-| Method | Path | Request | Response |
-| --- | --- | --- | --- |
-| `GET` | `/api/admin/inventory` | Query `product`, `variant`, `location`, `page`, `limit` | `{ "items": [InventorySnapshot], "total", "page", "pages" }`
-| `GET` | `/api/admin/inventory/low` | Query `threshold`, pagination | `{ "items": [InventorySnapshot], "threshold", "total" }`
-| `POST` | `/api/admin/inventory/adjustments` | `{ "productId", "variantId?", "qtyChange": +/-int, "reason", "note?", "location?" }` | `201 { "adjustment": Adjustment, "inventory": InventorySnapshot }`
-| `GET` | `/api/admin/reservations` | Query `order`, `status`, `page`, `limit` | `{ "items": [Reservation], "total", "page", "pages" }`
-| `POST` | `/api/admin/reservations/:id/release` | — | `{ "reservation": { status: "released" } }`
+| Method | Path | Request | Response | Permission |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/inventory` | Query `product`, `variant`, `location`, `page`, `limit` | `{ "items": [InventorySnapshot], "total", "page", "pages" }` | — (admin role) |
+| `GET` | `/api/admin/inventory/low` | Query `threshold`, pagination | `{ "items": [InventorySnapshot], "threshold", "total" }` | — (admin role) |
+| `POST` | `/api/admin/inventory/adjustments` | `{ "productId", "variantId?", "qtyChange": +/-int, "reason", "note?", "location?" }` | `201 { "adjustment": Adjustment, "inventory": InventorySnapshot }` | — (admin role) |
+| `GET` | `/api/admin/reservations` | Query `order`, `status`, `page`, `limit` | `{ "items": [Reservation], "total", "page", "pages" }` | — (admin role) |
+| `POST` | `/api/admin/reservations/:id/release` | — | `{ "reservation": { status: "released" } }` | — (admin role) |
 
 `InventorySnapshot` → `{ product, variant?, location?, quantity, reserved, updatedAt }`
 
@@ -171,57 +173,57 @@ Prioritized to match day-to-day operations for support teams.
 
 ### Payment Events
 
-| Method | Path | Request | Response |
-| --- | --- | --- | --- |
-| `GET` | `/api/admin/payment-events` | Query `provider?`, `type?`, `from?`, `to?`, pagination | `{ "items": [PaymentEvent], "total", "page", "pages" }` |
-| `GET` | `/api/admin/payment-events/:id` | — | `{ "event": PaymentEvent }` |
+| Method | Path | Request | Response | Permission |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/payment-events` | Query `provider?`, `type?`, `from?`, `to?`, pagination | `{ "items": [PaymentEvent], "total", "page", "pages" }` | `payments:events:view` |
+| `GET` | `/api/admin/payment-events/:id` | — | `{ "event": PaymentEvent }` | `payments:events:view` |
 
 `PaymentEvent` → `{ _id, provider, eventId, type?, order?, receivedAt }`
 
 #### Locations
 
-| Method | Path | Request | Response |
-| --- | --- | --- | --- |
-| `GET` | `/api/admin/inventory/locations` | Query `type?`, `active?`, `region?`, `country?`, `state=active|deleted|all`, pagination | `{ "items": [Location], "total", "page", "pages" }` |
-| `POST` | `/api/admin/inventory/locations` | `{ "code", "name", "type?", "geo?", "priority?", "active?", "metadata?" }` | `201 { "location": Location }` |
-| `GET` | `/api/admin/inventory/locations/:id` | — | `{ "location": Location }` *(includes soft-deleted when requested by ID)* |
-| `PUT` | `/api/admin/inventory/locations/:id` | Partial fields above | `{ "location": Location }` |
-| `DELETE` | `/api/admin/inventory/locations/:id` | — Soft delete | `{ "deleted": true }` |
-| `POST` | `/api/admin/inventory/locations/:id/restore` | — | `{ "location": Location }` |
+| Method | Path | Request | Response | Permission |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/inventory/locations` | Query `type?`, `active?`, `region?`, `country?`, `state=active|deleted|all`, pagination | `{ "items": [Location], "total", "page", "pages" }` | `inventory:location:view` |
+| `POST` | `/api/admin/inventory/locations` | `{ "code", "name", "type?", "geo?", "priority?", "active?", "metadata?" }` | `201 { "location": Location }` | `inventory:location:create` |
+| `GET` | `/api/admin/inventory/locations/:id` | — | `{ "location": Location }` *(includes soft-deleted when requested by ID)* | `inventory:location:view` |
+| `PUT` | `/api/admin/inventory/locations/:id` | Partial fields above | `{ "location": Location }` | `inventory:location:edit` |
+| `DELETE` | `/api/admin/inventory/locations/:id` | — Soft delete | `{ "deleted": true }` | `inventory:location:delete` |
+| `POST` | `/api/admin/inventory/locations/:id/restore` | — | `{ "location": Location }` | `inventory:location:edit` |
 
 `Location` → `{ _id, code, name, type, geo?, priority, active, metadata?, deletedAt?, createdAt, updatedAt }`
 
 #### Transfer orders
 
-| Method | Path | Request | Response |
-| --- | --- | --- | --- |
-| `GET` | `/api/admin/inventory/transfers` | Query `status?`, `fromLocationId?`, `toLocationId?`, `from?`, `to?`, pagination | `{ "items": [TransferOrder], "total", "page", "pages" }` |
-| `POST` | `/api/admin/inventory/transfers` | `{ "fromLocationId", "toLocationId", "lines": [{ "productId", "variantId?", "qty" }], "metadata?" }` | `201 { "transfer": TransferOrder }` *(created in `DRAFT` state)* |
-| `GET` | `/api/admin/inventory/transfers/:id` | — | `{ "transfer": TransferOrder }` |
-| `PUT` | `/api/admin/inventory/transfers/:id` | Update locations, lines, or metadata while `status=DRAFT` | `{ "transfer": TransferOrder }` |
-| `PATCH` | `/api/admin/inventory/transfers/:id/status` | `{ "status": "REQUESTED"|"IN_TRANSIT"|"RECEIVED"|"CANCELLED" }` | `{ "transfer": TransferOrder }` |
+| Method | Path | Request | Response | Permission |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/inventory/transfers` | Query `status?`, `fromLocationId?`, `toLocationId?`, `from?`, `to?`, pagination | `{ "items": [TransferOrder], "total", "page", "pages" }` | `inventory:transfer:view` |
+| `POST` | `/api/admin/inventory/transfers` | `{ "fromLocationId", "toLocationId", "lines": [{ "productId", "variantId?", "qty" }], "metadata?" }` | `201 { "transfer": TransferOrder }` *(created in `DRAFT` state)* | `inventory:transfer:create` |
+| `GET` | `/api/admin/inventory/transfers/:id` | — | `{ "transfer": TransferOrder }` | `inventory:transfer:view` |
+| `PUT` | `/api/admin/inventory/transfers/:id` | Update locations, lines, or metadata while `status=DRAFT` | `{ "transfer": TransferOrder }` | `inventory:transfer:edit` |
+| `PATCH` | `/api/admin/inventory/transfers/:id/status` | `{ "status": "REQUESTED"|"IN_TRANSIT"|"RECEIVED"|"CANCELLED" }` | `{ "transfer": TransferOrder }` | `inventory:transfer:edit` |
 
 `TransferOrder` → `{ _id, fromLocationId, toLocationId, lines: [{ productId, variantId?, qty }], status, metadata?, createdAt, updatedAt }`
 
 #### Stock ledger
 
-| Method | Path | Request | Response |
-| --- | --- | --- | --- |
-| `GET` | `/api/admin/inventory/ledger` | Query `productId?`, `variantId?`, `locationId?`, `direction?`, `from?`, `to?`, pagination | `{ "items": [LedgerEntry], "total", "page", "pages" }` |
-| `GET` | `/api/admin/inventory/ledger/:id` | — | `{ "entry": LedgerEntry }` |
+| Method | Path | Request | Response | Permission |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/inventory/ledger` | Query `productId?`, `variantId?`, `locationId?`, `direction?`, `from?`, `to?`, pagination | `{ "items": [LedgerEntry], "total", "page", "pages" }` | `inventory:ledger:view` |
+| `GET` | `/api/admin/inventory/ledger/:id` | — | `{ "entry": LedgerEntry }` | `inventory:ledger:view` |
 
 `LedgerEntry` → `{ _id, productId, variantId?, locationId, qty, direction, reason, refType?, refId?, occurredAt, actor?, metadata?, createdAt }`
 
 ### Order Administration
 
-| Method | Path | Request | Response |
-| --- | --- | --- | --- |
-| `GET` | `/api/admin/orders` | Query `status`, `customer`, pagination | `{ "items": [OrderSummary], "total" }`
-| `GET` | `/api/admin/orders/:id` | — | `{ "order": OrderDetail }`
-| `PATCH` | `/api/admin/orders/:id` | `{ "status?", "fulfillmentStatus?", "tracking?", "notes?" }` | `{ "order": OrderDetail }`
-| `POST` | `/api/admin/orders/:id/fulfill` | `{ "items": [{ "orderItemId", "quantity" }], "carrier?", "tracking?" }` | `{ "order": OrderDetail }`
-| `POST` | `/api/admin/orders/:id/refund` | `{ "items": [{ "orderItemId", "amount", "reason?" }], "note?" }` | `{ "order": OrderDetail, "refund": Refund }`
-| `POST` | `/api/admin/orders/:id/timeline` | `{ "type", "message", "meta?" }` | `201 { "success": true }`
+| Method | Path | Request | Response | Permission |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/orders` | Query `status`, `customer`, pagination | `{ "items": [OrderSummary], "total" }` | — (admin role) |
+| `GET` | `/api/admin/orders/:id` | — | `{ "order": OrderDetail }` | — (admin role) |
+| `PATCH` | `/api/admin/orders/:id` | `{ "status?", "fulfillmentStatus?", "tracking?", "notes?" }` | `{ "order": OrderDetail }` | — (admin role) |
+| `POST` | `/api/admin/orders/:id/fulfill` | `{ "items": [{ "orderItemId", "quantity" }], "carrier?", "tracking?" }` | `{ "order": OrderDetail }` | — (admin role) |
+| `POST` | `/api/admin/orders/:id/refund` | `{ "items": [{ "orderItemId", "amount", "reason?" }], "note?" }` | `{ "order": OrderDetail, "refund": Refund }` | — (admin role) |
+| `POST` | `/api/admin/orders/:id/timeline` | `{ "type", "message", "meta?" }` | `201 { "success": true }` | `orders:timeline:write` |
 
 `Refund` → `{ _id, order, items, totalAmount, currency, status, createdAt }`
 

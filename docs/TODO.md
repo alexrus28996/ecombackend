@@ -10,5 +10,6 @@ This list now tracks future enhancements beyond the production-ready baseline.
 - **Inventory reconciliation tooling**: schedule variance reports comparing StockLedger totals against physical counts and highlight drift beyond configurable thresholds.
 
 ## Completed
-- Admin audit logs, inventory locations/transfers/ledger endpoints, payment event audit APIs, and manual order timeline writes.
-- Product & category soft delete/restore support with extended catalog fields (vendor, taxClass, weight/dimensions, SEO metadata).
+- ✅ Missing API surface: admin audit logs, inventory locations/transfers/ledger, payment event streams, and manual order timeline writes are now live.
+- ✅ Product & category soft delete/restore support with extended catalog fields (vendor, taxClass, weight/dimensions, SEO metadata).
+- ✅ Granular permission gates enforced for catalog, category, inventory, payment event, and order timeline operations.

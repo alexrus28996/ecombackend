@@ -33,6 +33,11 @@ describe('Payment events', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
+  test('requires mandatory fields on create', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    await expect(PaymentEvent.create({ provider: 'stripe' })).rejects.toThrow(/validation/i);
+  });
+
   test('lists events filtered by provider', async () => {
     if (skipIfNeeded(shouldSkip)) return;
     const result = await listPaymentEvents({ provider: 'stripe' });

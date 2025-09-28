@@ -32,6 +32,11 @@ describe('Inventory locations', () => {
     expect(res.json).toHaveBeenCalled();
   });
 
+  test('fails validation when required fields are missing', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    await expect(createLocation({ name: '' })).rejects.toThrow(/validation/i);
+  });
+
   test('lists active locations and hides deleted by default', async () => {
     if (skipIfNeeded(shouldSkip)) return;
     const result = await listLocations({});

@@ -319,11 +319,46 @@ router.get('/orders/:id/shipments', authRequired, requireRole(ROLES.ADMIN), vali
 // Products CRUD
 router.get('/products', authRequired, requireRole(ROLES.ADMIN), listProductsController);
 router.get('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), getProductController);
-router.post('/products', authRequired, requireRole(ROLES.ADMIN), validate(productCreateSchema), createProductController);
-router.put('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate({ ...idParam, ...productUpdateSchema }), updateProductController);
-router.patch('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate({ ...idParam, ...productUpdateSchema }), updateProductController);
-router.delete('/products/:id', authRequired, requireRole(ROLES.ADMIN), validate(idParam), deleteProductController);
-router.post('/products/:id/restore', authRequired, requireRole(ROLES.ADMIN), validate(idParam), restoreProductController);
+router.post(
+  '/products',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_CREATE),
+  validate(productCreateSchema),
+  createProductController
+);
+router.put(
+  '/products/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
+  validate({ ...idParam, ...productUpdateSchema }),
+  updateProductController
+);
+router.patch(
+  '/products/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
+  validate({ ...idParam, ...productUpdateSchema }),
+  updateProductController
+);
+router.delete(
+  '/products/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_DELETE),
+  validate(idParam),
+  deleteProductController
+);
+router.post(
+  '/products/:id/restore',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.PRODUCT_EDIT),
+  validate(idParam),
+  restoreProductController
+);
 
 // Products admin helpers
 router.post('/products/import', authRequired, requireRole(ROLES.ADMIN), validate(importSchema), importProductsController);
@@ -341,12 +376,45 @@ router.get('/reports/top-customers', authRequired, requireRole(ROLES.ADMIN), top
 // Categories (admin aliases under /admin)
 router.get('/categories', authRequired, requireRole(ROLES.ADMIN), listCategoriesController);
 router.get('/categories/:id', authRequired, requireRole(ROLES.ADMIN), getCategoryController);
-router.post('/categories', authRequired, requireRole(ROLES.ADMIN), validate(categorySchema), createCategoryController);
-router.put('/categories/:id', authRequired, requireRole(ROLES.ADMIN), validate(categorySchema), updateCategoryController);
-router.delete('/categories/:id', authRequired, requireRole(ROLES.ADMIN), deleteCategoryController);
-router.post('/categories/:id/restore', authRequired, requireRole(ROLES.ADMIN), restoreCategoryController);
+router.post(
+  '/categories',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.CATEGORY_CREATE),
+  validate(categorySchema),
+  createCategoryController
+);
+router.put(
+  '/categories/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.CATEGORY_EDIT),
+  validate(categorySchema),
+  updateCategoryController
+);
+router.delete(
+  '/categories/:id',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.CATEGORY_DELETE),
+  deleteCategoryController
+);
+router.post(
+  '/categories/:id/restore',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.CATEGORY_RESTORE),
+  restoreCategoryController
+);
 router.get('/categories/:id/children', authRequired, requireRole(ROLES.ADMIN), listChildrenController);
-router.post('/categories/:id/reorder', authRequired, requireRole(ROLES.ADMIN), validate(reorderSchema), reorderChildrenController);
+router.post(
+  '/categories/:id/reorder',
+  authRequired,
+  requireRole(ROLES.ADMIN),
+  checkPermission(PERMISSIONS.CATEGORY_EDIT),
+  validate(reorderSchema),
+  reorderChildrenController
+);
 
 // Brands (admin)
 router.get('/brands', authRequired, requireRole(ROLES.ADMIN), listBrandsController);

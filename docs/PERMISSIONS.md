@@ -10,6 +10,7 @@ These granular scopes complement the `admin` role. Any user with role `admin` au
 | `category:create` | Create catalog categories. |
 | `category:edit` | Update or reorder categories; restore soft deletes. |
 | `category:delete` | Soft delete categories. |
+| `category:restore` | Restore soft-deleted categories. |
 | `inventory:manage` | Perform stock adjustments/reconciliation. |
 | `order:view` | View customer orders in support tools. |
 | `order:create` | Create orders on behalf of customers. |

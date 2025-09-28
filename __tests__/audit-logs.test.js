@@ -2,6 +2,8 @@ import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
 import { AuditLog } from '../src/modules/audit/audit.model.js';
 import { listAuditLogs, getAuditLog } from '../src/modules/audit/audit.service.js';
+import checkPermission from '../src/middleware/checkPermission.js';
+import { PERMISSIONS } from '../src/utils/permissions.js';
 import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
 jest.setTimeout(20000);
@@ -41,6 +43,15 @@ describe('Audit log service', () => {
 
   afterAll(async () => {
     await disconnectIfNeeded(shouldSkip);
+  });
+
+  test('permission middleware rejects missing audit scope', () => {
+    const middleware = checkPermission(PERMISSIONS.AUDIT_VIEW);
+    const req = { user: { roles: [], permissions: [] } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    middleware(req, res, () => {});
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: expect.stringContaining('audit:view') });
   });
 
   test('lists logs with redacted sensitive fields', async () => {

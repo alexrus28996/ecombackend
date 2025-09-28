@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import { Order } from '../src/modules/orders/order.model.js';
 import { listTimeline } from '../src/modules/orders/timeline.service.js';
 import { createTimelineEntry } from '../src/interfaces/http/controllers/order-timeline.controller.js';
+import { orderTimelineCreateSchema } from '../src/interfaces/http/validation/order-timeline.validation.js';
+import checkPermission from '../src/middleware/checkPermission.js';
+import { PERMISSIONS } from '../src/utils/permissions.js';
 import { createMockRes } from './helpers/mock-res.js';
 import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
@@ -32,6 +35,14 @@ describe('Order timeline controller', () => {
     await disconnectIfNeeded(shouldSkip);
   });
 
+  test('permission middleware enforces timeline scope', () => {
+    const middleware = checkPermission(PERMISSIONS.ORDERS_TIMELINE_WRITE);
+    const req = { user: { roles: [], permissions: [] } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    middleware(req, res, () => {});
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
   test('adds manual timeline entry', async () => {
     if (skipIfNeeded(shouldSkip)) return;
     const req = {
@@ -53,5 +64,10 @@ describe('Order timeline controller', () => {
     };
     const res = createMockRes();
     await expect(createTimelineEntry(req, res)).rejects.toThrow('Order not found');
+  });
+
+  test('validation rejects blank message payloads', () => {
+    const result = orderTimelineCreateSchema.body.safeParse({ type: 'note', message: '' });
+    expect(result.success).toBe(false);
   });
 });

@@ -107,4 +107,16 @@ describe('Transfer orders', () => {
     const sourceStock = await StockItem.findOne({ productId: product._id, locationId: fromLocation._id });
     expect(sourceStock.onHand).toBe(12); // back to previous total
   });
+
+  test('rejects invalid transfer payloads and unknown ids', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    await expect(
+      createTransferOrder({ fromLocationId: fromLocation._id, toLocationId: toLocation._id, lines: [] })
+    ).rejects.toThrow('transfer lines required');
+    await expect(
+      createTransferOrder({ fromLocationId: fromLocation._id, toLocationId: fromLocation._id, lines: [{ productId: product._id, qty: 1 }] })
+    ).rejects.toThrow('from and to locations must differ');
+    const fakeId = new mongoose.Types.ObjectId().toString();
+    await expect(getTransferOrderById(fakeId)).rejects.toThrow('Transfer order not found');
+  });
 });

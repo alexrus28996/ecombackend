@@ -934,6 +934,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Create category (admin alias)',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['category:create'],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, slug: { type: 'string' }, description: { type: 'string' }, parent: { type: 'string', nullable: true } }, required: ['name'] } } } },
           responses: { '201': { description: 'Created' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
         }
@@ -948,6 +949,7 @@ export function buildOpenApiSpec() {
         put: {
           summary: 'Update category (admin alias)',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['category:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, slug: { type: 'string' }, description: { type: 'string' }, parent: { type: 'string', nullable: true } } } } } },
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
@@ -955,6 +957,16 @@ export function buildOpenApiSpec() {
         delete: {
           summary: 'Delete category (admin alias)',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['category:delete'],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
+        }
+      },
+      [`${api}/admin/categories/{id}/restore`]: {
+        post: {
+          summary: 'Restore category (admin alias)',
+          security: [{ bearerAuth: [] }],
+          'x-permissions': ['category:restore'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
         }
@@ -971,6 +983,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Reorder children (admin alias)',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['category:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' } } }, required: ['ids'] } } } },
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
@@ -991,6 +1004,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Create product (admin)',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['product:create'],
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ProductInput' } } } },
           responses: { '201': { description: 'Created' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' } }
         }
@@ -1005,6 +1019,7 @@ export function buildOpenApiSpec() {
         put: {
           summary: 'Update product (admin)',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['product:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ProductInput' } } } },
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
@@ -1012,6 +1027,7 @@ export function buildOpenApiSpec() {
         patch: {
           summary: 'Partially update product (admin)',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['product:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ProductInput' } } } },
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' } }
@@ -1019,6 +1035,7 @@ export function buildOpenApiSpec() {
         delete: {
           summary: 'Delete product (admin)',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['product:delete'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' }, '401': { description: 'Unauthorized' }, '403': { description: 'Forbidden' }, '404': { description: 'Not Found' }, '409': { description: 'Conflict (product referenced by inventory/reviews/orders/shipments)' } }
         }
@@ -1548,6 +1565,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Restore soft-deleted product',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['product:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' } }
         }
@@ -1556,6 +1574,7 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'List admin audit logs',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['audit:view'],
           responses: {
             '200': {
               description: 'OK',
@@ -1578,6 +1597,7 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'Get a single audit log entry',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['audit:view'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: {
             '200': {
@@ -1592,6 +1612,7 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'List inventory locations',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:location:view'],
           responses: {
             '200': {
               description: 'OK',
@@ -1602,6 +1623,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Create inventory location',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:location:create'],
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Location' } } } },
           responses: { '201': { description: 'Created' } }
         }
@@ -1610,12 +1632,14 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'Get inventory location',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:location:view'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         },
         put: {
           summary: 'Update inventory location',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:location:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Location' } } } },
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
@@ -1623,6 +1647,7 @@ export function buildOpenApiSpec() {
         delete: {
           summary: 'Soft delete location',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:location:delete'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         }
@@ -1631,6 +1656,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Restore location',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:location:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         }
@@ -1639,6 +1665,7 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'List transfer orders',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:transfer:view'],
           responses: {
             '200': {
               description: 'OK',
@@ -1649,6 +1676,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Create transfer order',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:transfer:create'],
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TransferOrder' } } } },
           responses: { '201': { description: 'Created' } }
         }
@@ -1657,12 +1685,14 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'Get transfer order',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:transfer:view'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         },
         put: {
           summary: 'Update transfer order',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:transfer:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/TransferOrder' } } } },
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
@@ -1672,6 +1702,7 @@ export function buildOpenApiSpec() {
         patch: {
           summary: 'Transition transfer order status',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:transfer:edit'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string' } }, required: ['status'] } } } },
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
@@ -1681,6 +1712,7 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'List stock ledger entries',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:ledger:view'],
           responses: {
             '200': {
               description: 'OK',
@@ -1693,6 +1725,7 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'Get stock ledger entry',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['inventory:ledger:view'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         }
@@ -1701,6 +1734,7 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'List payment events',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['payments:events:view'],
           responses: {
             '200': {
               description: 'OK',
@@ -1713,6 +1747,7 @@ export function buildOpenApiSpec() {
         get: {
           summary: 'Get payment event',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['payments:events:view'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'OK' }, '404': { description: 'Not Found' } }
         }
@@ -1721,6 +1756,7 @@ export function buildOpenApiSpec() {
         post: {
           summary: 'Add order timeline entry',
           security: [{ bearerAuth: [] }],
+          'x-permissions': ['orders:timeline:write'],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { type: { type: 'string' }, message: { type: 'string' }, meta: { type: 'object' } }, required: ['type', 'message'] } } } },
           responses: { '201': { description: 'Created' }, '404': { description: 'Not Found' } }

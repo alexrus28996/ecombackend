@@ -1,10 +1,13 @@
 import { jest } from '@jest/globals';
+import mongoose from 'mongoose';
 import {
   createProduct,
   getProduct,
   updateProduct
 } from '../src/modules/catalog/product.service.js';
 import { Category } from '../src/modules/catalog/category.model.js';
+import checkPermission from '../src/middleware/checkPermission.js';
+import { PERMISSIONS } from '../src/utils/permissions.js';
 import { connectOrSkip, disconnectIfNeeded, skipIfNeeded } from './helpers/test-db.js';
 
 describe('Product extended field support', () => {
@@ -21,6 +24,14 @@ describe('Product extended field support', () => {
 
   afterAll(async () => {
     await disconnectIfNeeded(shouldSkip);
+  });
+
+  test('permission middleware requires product write scope', () => {
+    const middleware = checkPermission(PERMISSIONS.PRODUCT_CREATE);
+    const req = { user: { roles: [], permissions: [] } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    middleware(req, res, () => {});
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   test('create and update product with extended catalog fields', async () => {
@@ -72,5 +83,18 @@ describe('Product extended field support', () => {
     expect(fetched.dimensions.length).toBe(60);
     expect(fetched.dimensions.unit).toBe('cm');
     expect(fetched.weightUnit).toBe('lb');
+  });
+
+  test('rejects invalid product payloads', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    await expect(
+      createProduct({ name: 'Bad Product', price: -10, category: category._id })
+    ).rejects.toThrow(/validation/i);
+  });
+
+  test('update non-existent product throws 404', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    const fakeId = new mongoose.Types.ObjectId().toString();
+    await expect(updateProduct(fakeId, { name: 'Missing' })).rejects.toThrow('Product not found');
   });
 });

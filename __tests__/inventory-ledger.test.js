@@ -47,6 +47,13 @@ describe('Inventory ledger', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
+  test('adjust stock validation guards required fields', async () => {
+    if (skipIfNeeded(shouldSkip)) return;
+    await expect(
+      adjustStockLevels({ adjustments: [], reason: 'ADJUSTMENT', actor: 'tester' })
+    ).rejects.toThrow('adjustments array required');
+  });
+
   test('lists ledger entries with filters', async () => {
     if (skipIfNeeded(shouldSkip)) return;
     const result = await listStockLedgerEntries({ productId: product._id.toString(), direction: 'IN' });
