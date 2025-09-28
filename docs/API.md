@@ -54,7 +54,7 @@ These endpoints drive the storefront landing, search, and product detail experie
 | --- | --- | --- | --- |
 | `GET` | `/api/products` | Query: `q`, `category`, `brand`, `page`, `limit`, `sort` | `{ "items": [ProductSummary], "total", "page", "pages" }`
 | `GET` | `/api/products/:id` | — | `{ "product": ProductDetail }`
-| `GET` | `/api/categories` | Query: `parent?`, `page?`, `limit?` | `{ "items": [Category], "total" }`
+| `GET` | `/api/categories` | Query: `parent?`, `page?`, `limit?` | `{ "items": [Category], "total" }` *(soft-deleted categories are excluded)*
 | `GET` | `/api/categories/:id` | — | `{ "category": Category }`
 | `GET` | `/api/products/:id/reviews` | Query: `page`, `limit` | `{ "items": [Review], "total", "page", "pages" }`
 | `POST` | `/api/products/:id/reviews` | Auth required; `{ "rating": 1-5, "title?", "body?" }` | `201 { "review": Review }`
@@ -62,9 +62,9 @@ These endpoints drive the storefront landing, search, and product detail experie
 
 **Product payloads**
 
-`ProductSummary` → `{ _id, name, slug, price, compareAtPrice?, currency, images, category: { _id, name, slug }, brand?: { _id, name, slug }, rating?: { average, count } }`
+`ProductSummary` → `{ _id, name, slug, price, compareAtPrice?, currency, images, category: { _id, name, slug }, brand?: { _id, name, slug }, vendor?, tags?, rating?: { average, count } }`
 
-`ProductDetail` → `ProductSummary` + `{ description?, longDescription?, attributes, variants: [Variant], seo?, inventory: { quantity, reserved } }`
+`ProductDetail` → `ProductSummary` + `{ description?, longDescription?, costPrice?, taxClass?, weight?, weightUnit, dimensions?: { length?, width?, height?, unit }, attributes, tags?, metaTitle?, metaDescription?, metaKeywords?, variants: [Variant], inventory: { quantity, reserved } }`
 
 `Variant` → `{ _id, sku, attributes, price, currency, image?, createdAt, updatedAt }`
 
@@ -131,12 +131,15 @@ Prioritized to match day-to-day operations for support teams.
 
 | Method | Path | Request | Response |
 | --- | --- | --- | --- |
-| `POST` | `/api/products` | `ProductInput` (name, description?, price, currency, images[], attributes{}, categoryId, brandId?, variants[]) | `201 { "product": ProductDetail }`
+| `POST` | `/api/products` | `ProductInput` (name, description?, longDescription?, price, compareAtPrice?, costPrice?, currency, images[], attributes{}, categoryId, brandId?, vendor?, taxClass?, weight?, weightUnit?, dimensions?, tags[], metaTitle?, metaDescription?, metaKeywords[], variants[]) — arrays are trimmed & deduped. | `201 { "product": ProductDetail }`
 | `PUT` | `/api/products/:id` | Partial `ProductInput` | `{ "product": ProductDetail }`
 | `DELETE` | `/api/products/:id` | — | `{ "success": true }` (fails with `409` if referenced)
 | `POST` | `/api/categories` | `{ "name", "parent?", "description?" }` | `201 { "category": Category }`
 | `PUT` | `/api/categories/:id` | Same fields | `{ "category": Category }`
-| `DELETE` | `/api/categories/:id` | — | `{ "success": true }`
+| `DELETE` | `/api/categories/:id` | — (soft delete sets `deletedAt`, `isActive=false`, `status="inactive"`) | `{ "success": true }`
+| `POST` | `/api/admin/categories/:id/restore` | — | `{ "category": Category }`
+
+> Admin listing endpoints accept `includeDeleted=true` to surface soft-deleted categories for restoration workflows.
 
 ### Inventory & Reservations
 

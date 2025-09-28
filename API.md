@@ -1,6 +1,6 @@
 # E-commerce HTTP API
 
-Last reviewed: 2025-09-26.
+Last reviewed: 2025-10-21.
 
 All business endpoints are served under the configured `API_PREFIX` (`/api` by default). Responses are JSON and are returned without a global `data` envelope. Errors follow:
 
@@ -16,7 +16,7 @@ All business endpoints are served under the configured `API_PREFIX` (`/api` by d
 
 - Authentication: supply `Authorization: Bearer <JWT>` on any non-public route. The first registered account is promoted to the `admin` role.
 - Idempotency: endpoints that mutate orders (`POST /api/orders`, `POST /api/admin/returns/:id/approve`) accept an optional `Idempotency-Key` header and replay the first response for duplicate keys.
-- Rate limiting: a global limiter wraps `/api`, with stricter buckets for `/api/auth`, `/api/uploads`, and `/api/payments`.
+- Rate limiting: a global limiter wraps `/api`, with stricter buckets for `/api/auth`, `/api/uploads`, `/api/payments`, `/api/admin/audit-logs`, and `/api/admin/inventory/ledger`.
 - Documentation: OpenAPI JSON is available at `/docs/openapi.json`, and the interactive explorer lives at `/docs`.
 - Static uploads: files stored via the uploads API are served from `/uploads` in development.
 
@@ -29,6 +29,8 @@ Command executed: `npm test`.
 | Authentication, JWT rotation, address book, cart CRUD, coupon pricing, FX conversion, catalog CRUD | Working (automated) | Covered by Jest suites in `__tests__/auth.test.js`, `addresses.test.js`, `cart.test.js`, `coupons.test.js`, `currency.test.js`, `products.test.js`, `pricing.test.js`, `jwt.test.js`, `errors.test.js`. |
 | Cart to order conversion, inventory reservations, Stripe payment success, admin reservation release | Working (automated) | Covered by Jest suites in `__tests__/checkout.test.js` and `__tests__/payments.test.js`, which exercise order creation, reservation release, and payment capture fallbacks. |
 | Product review mutations (create/update/delete/moderation) | Working (automated) | Covered by `__tests__/reviews.test.js`, ensuring ratings recompute correctly after upsert, moderation, and deletion. |
+| Product merchandising fields & category lifecycle (soft delete/restore) | Working (automated) | Covered by Jest suites `__tests__/products-extra-fields.test.js` and `categories-soft-delete.test.js`. |
+| Admin audit logs, inventory locations, transfer orders, stock ledger, payment events, order timeline notes | Working (automated) | Covered by Jest suites `__tests__/audit-logs.test.js`, `inventory-locations.test.js`, `transfer-orders.test.js`, `inventory-ledger.test.js`, `payment-events.test.js`, and `order-timeline.test.js`. |
 | Remaining admin operations (metrics, reports, stock adjustments, imports, uploads, shipments) | Working (manual review) | Code paths inspected; no automated coverage yet. |
 
 ## Endpoint reference
@@ -83,13 +85,14 @@ Audience legend: Public (no auth), Authenticated user (valid JWT), Admin (requir
 
 | Endpoint | Audience | Status | Request | Response / Notes |
 | --- | --- | --- | --- | --- |
-| `GET /api/categories` | Public | Working (manual review) | Query `q?`, `parent?`, `page?`, `limit?` | `{ "items": Category[], "total", "page", "pages" }`. |
-| `GET /api/categories/:id` | Public | Working (manual review) | Params `{ id }` | `{ "category": Category }`. |
+| `GET /api/categories` | Public | Working (manual review) | Query `q?`, `parent?`, `page?`, `limit?` | `{ "items": Category[], "total", "page", "pages" }`. Soft-deleted categories are excluded. |
+| `GET /api/categories/:id` | Public | Working (manual review) | Params `{ id }` | `{ "category": Category }`. Returns 404 for soft-deleted records. |
 | `GET /api/categories/:id/children` | Public | Working (manual review) | Query `page?`, `limit?` | Same pager payload filtered by parent id. |
 | `POST /api/categories` | Permission (category:create) | Working (manual review) | Body `{ "name", "slug?", "description?", "parent?" }` | `201 { "category": Category }`. Ensures parent exists and generates slug when missing. |
 | `PUT /api/categories/:id` | Permission (category:edit) | Working (manual review) | Body `{ "name?", "slug?", "description?", "parent?" }` | `{ "category": Category }`. Guards against self-parenting and missing parent. |
 | `POST /api/categories/:id/reorder` | Permission (category:edit) | Working (manual review) | Body `{ "ids": string[] }` | Returns updated child listing with new `sortOrder`. |
-| `DELETE /api/categories/:id` | Permission (category:delete) | Working (manual review) | None | `{ "success": true }` when the category has no children or products. |
+| `DELETE /api/categories/:id` | Permission (category:delete) | Working (manual review) | None | `{ "success": true }`. Performs a soft delete (`deletedAt`, `status="inactive"`, `isActive=false`). |
+| `POST /api/admin/categories/:id/restore` | Permission (category:edit) | Working (manual review) | None | `{ "category": Category }`. Restores a soft-deleted category; requires unique slug check. |
 
 ### Catalog: brands
 
@@ -106,14 +109,14 @@ Audience legend: Public (no auth), Authenticated user (valid JWT), Admin (requir
 | Endpoint | Audience | Status | Request | Response / Notes |
 | --- | --- | --- | --- | --- |
 | `GET /api/products` | Public | Working (automated) | Query `q?`, `category?`, `page?`, `limit?` | `{ "items": ProductSummary[], "total", "page", "pages" }`. Items include populated category and brand fields. |
-| `GET /api/products/:id` | Public | Working (automated) | Params `{ id }` | `{ "product": ProductDetail }` with `attributeConfig` and variant list. |
+| `GET /api/products/:id` | Public | Working (automated) | Params `{ id }` | `{ "product": ProductDetail }` including SEO fields (`metaTitle`, `metaDescription`, `metaKeywords`), merchandising copy (`longDescription`), pricing (`compareAtPrice`, `costPrice`, `taxClass`), sourcing info (`vendor`), shipping metrics (`weight`, `weightUnit`, `dimensions`), and cleaned `tags`. `attributeConfig` and variants populated. |
 
 ### Catalog: products (admin CRUD)
 
 | Endpoint | Audience | Status | Request | Response / Notes |
 | --- | --- | --- | --- | --- |
-| `POST /api/products` | Permission (product:create) | Working (manual review) | Body `{ "name", "description?", "price", "currency?", "images?", "attributes?", "isActive?", "category", "brandId?" }` | `201 { "product": Product }`. Validates category is a leaf and brand exists if provided. |
-| `PUT /api/products/:id` | Permission (product:edit) | Working (manual review) | Body same fields (all optional) | `{ "product": Product }`. |
+| `POST /api/products` | Permission (product:create) | Working (manual review) | Body `{ "name", "description?", "longDescription?", "price", "compareAtPrice?", "costPrice?", "currency?", "vendor?", "taxClass?", "weight?", "weightUnit?", "dimensions?": { "length?", "width?", "height?", "unit?" }, "tags?": string[], "images?", "attributes?", "metaTitle?", "metaDescription?", "metaKeywords?", "isActive?", "category", "brandId?" }` | `201 { "product": Product }`. Validates category is a leaf, brand exists if provided, and numeric fields are `>= 0`; tags are trimmed/deduped, weight defaults to `kg`, dimensions default to `cm`. |
+| `PUT /api/products/:id` | Permission (product:edit) | Working (manual review) | Body same fields (all optional) | `{ "product": Product }`. Applies same validation/sanitization rules as create. |
 | `PATCH /api/products/:id` | Permission (product:edit) | Working (manual review) | Body same as `PUT` | `{ "product": Product }`. |
 | `DELETE /api/products/:id` | Permission (product:delete) | Working (manual review) | None | `{ "success": true }` when no inventory, orders, reviews, or shipments reference the product. |
 
@@ -140,6 +143,57 @@ Audience legend: Public (no auth), Authenticated user (valid JWT), Admin (requir
 | `PUT /api/products/:productId/variants/:variantId` | Permission (product:edit) | Working (manual review) | Body partial variant fields | `{ "variant": Variant }`. |
 | `DELETE /api/products/:productId/variants/:variantId` | Permission (product:edit) | Working (manual review) | None | `{ "success": true }`. |
 | `POST /api/products/:productId/variants-matrix` | Permission (product:edit) | Working (manual review) | Body `{ "options": { "<attribute>": string[] }, "base?": { "price?", "skuPrefix?" } }` | `{ "items": VariantPreview[], "count": number }`. Generates combinations without persisting. |
+
+### Admin: audit logs
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/audit-logs` | Permission (audit:view) | Working (automated) | Query `q?`, `user?`, `method?`, `path?`, `status?`, `from?`, `to?`, `page?`, `limit?` | `{ "items": AuditLog[], "total", "page", "pages" }`. Responses redact sensitive headers and payload keys (e.g., `Authorization`, password fields). Subject to stricter rate limiting. |
+| `GET /api/admin/audit-logs/:id` | Permission (audit:view) | Working (automated) | Params `{ id }` | `{ "log": AuditLog }`. Returns 404 if not found; payload mirrors list redaction rules. |
+
+### Inventory: locations (admin)
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/locations` | Permission (inventory:location:view) | Working (automated) | Query `q?`, `type?`, `active?`, `page?`, `limit?`, `includeDeleted?` | `{ "items": Location[], "total", "page", "pages" }`. Supports soft-deleted visibility when `includeDeleted=true`. |
+| `POST /api/admin/locations` | Permission (inventory:location:create) | Working (automated) | Body `{ "code", "name", "type?", "geo?", "priority?", "active?", "metadata?" }` | `201 { "location": Location }`. Validates unique code; defaults `active=true`. |
+| `GET /api/admin/locations/:id` | Permission (inventory:location:view) | Working (automated) | Params `{ id }` | `{ "location": Location }`. Returns 404 when missing or soft-deleted without `includeDeleted`. |
+| `PUT /api/admin/locations/:id` | Permission (inventory:location:edit) | Working (automated) | Body partial fields | `{ "location": Location }`. Revalidates uniqueness for `code` and supports toggling `active`. |
+| `DELETE /api/admin/locations/:id` | Permission (inventory:location:delete) | Working (automated) | None | `{ "success": true }`. Soft deletes by setting `deletedAt` and `active=false`. |
+| `POST /api/admin/locations/:id/restore` | Permission (inventory:location:edit) | Working (automated) | None | `{ "location": Location }`. Clears `deletedAt` and allows reactivation. |
+
+### Inventory: transfer orders (admin)
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/inventory/transfers` | Permission (inventory:transfer:view) | Working (automated) | Query `status?`, `fromLocationId?`, `toLocationId?`, `page?`, `limit?`, `from?`, `to?` | `{ "items": TransferOrder[], "total", "page", "pages" }`. Filters by status/date and populates locations and lines. |
+| `POST /api/admin/inventory/transfers` | Permission (inventory:transfer:create) | Working (automated) | Body `{ "fromLocationId", "toLocationId", "lines": [{ "productId", "variantId?", "qty" }], "metadata?" }` | `201 { "transfer": TransferOrder }`. Validates `qty >= 1` per line and distinct source/destination locations. |
+| `GET /api/admin/inventory/transfers/:id` | Permission (inventory:transfer:view) | Working (automated) | Params `{ id }` | `{ "transfer": TransferOrder }`. Includes timeline of status transitions. |
+| `PATCH /api/admin/inventory/transfers/:id` | Permission (inventory:transfer:edit) | Working (automated) | Body partial fields and lines | `{ "transfer": TransferOrder }`. Allowed only while status is `DRAFT`; enforces line validation. |
+| `POST /api/admin/inventory/transfers/:id/submit` | Permission (inventory:transfer:submit) | Working (automated) | None | `{ "transfer": TransferOrder }`. Moves status `DRAFT → REQUESTED`; locks edits. |
+| `POST /api/admin/inventory/transfers/:id/ship` | Permission (inventory:transfer:submit) | Working (automated) | None | `{ "transfer": TransferOrder }`. Transitions `REQUESTED → IN_TRANSIT`. |
+| `POST /api/admin/inventory/transfers/:id/receive` | Permission (inventory:transfer:receive) | Working (automated) | None | `{ "transfer": TransferOrder }`. Transitions `IN_TRANSIT → RECEIVED`, writes StockLedger entries (`TRANSFER_OUT`/`TRANSFER_IN`), and updates `StockItem.onHand`/`incoming`. Forbidden once received. |
+| `POST /api/admin/inventory/transfers/:id/cancel` | Permission (inventory:transfer:edit) | Working (automated) | None | `{ "transfer": TransferOrder }`. Cancels when status is `DRAFT` or `REQUESTED`. |
+
+### Inventory: stock ledger (admin)
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/inventory/ledger` | Permission (inventory:ledger:view) | Working (automated) | Query `productId?`, `variantId?`, `locationId?`, `direction?`, `reason?`, `refType?`, `from?`, `to?`, `page?`, `limit?` | `{ "items": StockLedger[], "total", "page", "pages" }`. Strict rate limited; returns paginated chronological entries. |
+| `GET /api/admin/inventory/ledger/:id` | Permission (inventory:ledger:view) | Working (automated) | Params `{ id }` | `{ "entry": StockLedger }`. 404 when unknown. |
+
+### Payments: events (admin)
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `GET /api/admin/payment-events` | Permission (payments:events:view) | Working (automated) | Query `provider?`, `type?`, `order?`, `from?`, `to?`, `page?`, `limit?` | `{ "items": PaymentEvent[], "total", "page", "pages" }`. Stored payloads redact tokens/secrets; sorted newest first. |
+| `GET /api/admin/payment-events/:id` | Permission (payments:events:view) | Working (automated) | Params `{ id }` | `{ "event": PaymentEvent }`. Includes provider response metadata with redaction. |
+
+### Orders: timeline (admin)
+
+| Endpoint | Audience | Status | Request | Response / Notes |
+| --- | --- | --- | --- | --- |
+| `POST /api/admin/orders/:id/timeline` | Permission (orders:timeline:write) | Working (automated) | Body `{ "type", "message", "meta?", "from?", "to?" }` | `201 { "entry": OrderTimeline }`. Persists author info, emits correlated AuditLog entry, and rejects empty messages. |
 
 ### Reviews
 

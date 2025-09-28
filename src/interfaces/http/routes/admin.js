@@ -67,7 +67,8 @@ import {
   updateCategory as updateCategoryController,
   listChildren as listChildrenController,
   reorderChildren as reorderChildrenController,
-  deleteCategory as deleteCategoryController
+  deleteCategory as deleteCategoryController,
+  restoreCategory as restoreCategoryController
 } from '../controllers/categories.controller.js';
 import { categorySchema, reorderSchema } from '../validation/categories.validation.js';
 import { brandSchema as brandCreateSchema, brandUpdateSchema, idParam as brandIdParam } from '../validation/brands.validation.js';
@@ -156,6 +157,7 @@ router.get('/categories/:id', authRequired, requireRole(ROLES.ADMIN), getCategor
 router.post('/categories', authRequired, requireRole(ROLES.ADMIN), validate(categorySchema), createCategoryController);
 router.put('/categories/:id', authRequired, requireRole(ROLES.ADMIN), validate(categorySchema), updateCategoryController);
 router.delete('/categories/:id', authRequired, requireRole(ROLES.ADMIN), deleteCategoryController);
+router.post('/categories/:id/restore', authRequired, requireRole(ROLES.ADMIN), restoreCategoryController);
 router.get('/categories/:id/children', authRequired, requireRole(ROLES.ADMIN), listChildrenController);
 router.post('/categories/:id/reorder', authRequired, requireRole(ROLES.ADMIN), validate(reorderSchema), reorderChildrenController);
 

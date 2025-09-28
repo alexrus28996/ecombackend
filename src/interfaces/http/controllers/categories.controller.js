@@ -1,14 +1,24 @@
-import { listCategories as svcList, createCategory as svcCreate, getCategory as svcGet, updateCategory as svcUpdate, deleteCategory as svcDelete } from '../../../modules/catalog/category.service.js';
+import { listCategories as svcList, createCategory as svcCreate, getCategory as svcGet, updateCategory as svcUpdate, deleteCategory as svcDelete, restoreCategory as svcRestore } from '../../../modules/catalog/category.service.js';
 import slugify from 'slugify';
+
+function isAdminRequest(req) {
+  return typeof req.baseUrl === 'string' && req.baseUrl.includes('/admin');
+}
+
+function shouldIncludeDeleted(req) {
+  return isAdminRequest(req) && req.query.includeDeleted === 'true';
+}
 
 export async function listCategories(req, res) {
   const { q, page, limit, parent } = req.query;
-  const result = await svcList({ q, page, limit, parent });
+  const includeDeleted = shouldIncludeDeleted(req);
+  const result = await svcList({ q, page, limit, parent, includeDeleted });
   res.json(result);
 }
 
 export async function getCategory(req, res) {
-  const cat = await svcGet(req.params.id);
+  const includeDeleted = shouldIncludeDeleted(req);
+  const cat = await svcGet(req.params.id, { includeDeleted });
   res.json({ category: cat });
 }
 
@@ -30,7 +40,8 @@ export async function updateCategory(req, res) {
 
 export async function listChildren(req, res) {
   const { page, limit } = req.query;
-  const result = await svcList({ parent: req.params.id, page, limit });
+  const includeDeleted = shouldIncludeDeleted(req);
+  const result = await svcList({ parent: req.params.id, page, limit, includeDeleted });
   res.json(result);
 }
 
@@ -46,5 +57,10 @@ export async function reorderChildren(req, res) {
 export async function deleteCategory(req, res) {
   const result = await svcDelete(req.params.id);
   res.json(result);
+}
+
+export async function restoreCategory(req, res) {
+  const category = await svcRestore(req.params.id);
+  res.json({ category });
 }
 

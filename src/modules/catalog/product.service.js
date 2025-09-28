@@ -5,6 +5,75 @@ import { paginate } from '../../utils/pagination.js';
 import { listAttributesWithOptions } from './attribute.service.js';
 import { listVariants, attributeMapFromVariant } from './variant.service.js';
 
+function normalizeOptionalStringArray(values) {
+  if (typeof values === 'undefined') return undefined;
+  if (!Array.isArray(values)) return [];
+  const sanitized = values
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .filter(Boolean);
+  return Array.from(new Set(sanitized));
+}
+
+function sanitizeProductData(data, { isUpdate = false } = {}) {
+  const sanitized = { ...data };
+
+  if (Object.prototype.hasOwnProperty.call(sanitized, 'vendor') && typeof sanitized.vendor === 'string') {
+    const trimmed = sanitized.vendor.trim();
+    if (trimmed === '') {
+      if (isUpdate) delete sanitized.vendor;
+      else sanitized.vendor = undefined;
+    } else {
+      sanitized.vendor = trimmed;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(sanitized, 'taxClass') && typeof sanitized.taxClass === 'string') {
+    const trimmed = sanitized.taxClass.trim();
+    if (trimmed === '') {
+      if (isUpdate) delete sanitized.taxClass;
+      else sanitized.taxClass = undefined;
+    } else {
+      sanitized.taxClass = trimmed;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(sanitized, 'tags')) {
+    const tags = normalizeOptionalStringArray(sanitized.tags);
+    if (typeof tags !== 'undefined') sanitized.tags = tags;
+    else delete sanitized.tags;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(sanitized, 'metaKeywords')) {
+    const keywords = normalizeOptionalStringArray(sanitized.metaKeywords);
+    if (typeof keywords !== 'undefined') sanitized.metaKeywords = keywords;
+    else delete sanitized.metaKeywords;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(sanitized, 'dimensions') && sanitized.dimensions) {
+    const dimensions = { ...sanitized.dimensions };
+    const hasSizeValues = ['length', 'width', 'height'].some((key) =>
+      Object.prototype.hasOwnProperty.call(dimensions, key)
+    );
+    const hasUnit = Object.prototype.hasOwnProperty.call(dimensions, 'unit');
+    if (!hasSizeValues && !hasUnit) {
+      delete sanitized.dimensions;
+    } else {
+      if (!hasUnit) dimensions.unit = 'cm';
+      sanitized.dimensions = dimensions;
+    }
+  }
+
+  if (!isUpdate && !Object.prototype.hasOwnProperty.call(sanitized, 'weightUnit')) {
+    sanitized.weightUnit = 'kg';
+  }
+
+  if (isUpdate && sanitized.weightUnit === '') {
+    delete sanitized.weightUnit;
+  }
+
+  return sanitized;
+}
+
 /**
  * Return a paginated list of products with basic text search.
  * @param {{ q?: string, limit?: number, page?: number }} params
@@ -45,7 +114,7 @@ export async function getProduct(id) {
  * Create a new product.
  */
 export async function createProduct(data) {
-  const product = await Product.create(data);
+  const product = await Product.create(sanitizeProductData(data));
   return product;
 }
 
@@ -53,7 +122,7 @@ export async function createProduct(data) {
  * Update a product by id or throw NOT_FOUND.
  */
 export async function updateProduct(id, data) {
-  const product = await Product.findByIdAndUpdate(id, data, { new: true });
+  const product = await Product.findByIdAndUpdate(id, sanitizeProductData(data, { isUpdate: true }), { new: true });
   if (!product) throw errors.notFound(ERROR_CODES.PRODUCT_NOT_FOUND);
   return product;
 }
